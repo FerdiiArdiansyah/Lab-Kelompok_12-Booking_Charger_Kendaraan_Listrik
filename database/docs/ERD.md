@@ -187,3 +187,52 @@ erDiagram
         timestamp created_at
     }
 ```
+
+---
+
+## 5. `user_db` (user-service)
+
+Mengelola akun pengguna, autentikasi, dan data kendaraan listrik milik user.
+
+```mermaid
+erDiagram
+    USERS ||--|{ USER_VEHICLES : "owns"
+
+    USERS {
+        string id PK
+        string name
+        string email UK
+        string phone
+        string password_hash
+        string role
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    USER_VEHICLES {
+        string id PK
+        string user_id FK
+        string brand
+        string model
+        string license_plate UK
+        string connector_type
+        decimal battery_capacity_kwh
+        boolean is_default
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+---
+
+## 6. Relasi Lintas Database (`user_id`)
+
+Karena setiap service memiliki database terpisah, `user_id` dipegang sebagai **foreign key logis** (bukan constraint fisik) di setiap service:
+
+| Database | Tabel | Kolom | Referensi logis ke |
+|---|---|---|---|
+| `booking_db` | `bookings` | `user_id` | `user_db.users.id` |
+| `booking_db` | `waitlists` | `user_id` | `user_db.users.id` |
+| `session_db` | `charging_sessions` | `user_id` | `user_db.users.id` |
+| `billing_db` | `invoices` | `user_id` | `user_db.users.id` |

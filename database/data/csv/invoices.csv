@@ -1,0 +1,3 @@
+id,session_id,user_id,tariff_id,consumed_kwh,price_per_kwh,subtotal,tax,total,status,created_at,updated_at
+inv-001,ses-001,usr-001,trf-001,24.500,2467.00,60441.50,6648.57,67090.07,PAID,2026-08-19 08:05:00+07,2026-08-19 08:32:00+07
+inv-002,ses-003,usr-006,trf-001,18.750,2467.00,46256.25,5088.19,51344.44,PAID,2026-08-19 06:05:00+07,2026-08-19 06:32:00+07

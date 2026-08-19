@@ -6,11 +6,13 @@
 flowchart LR
     U[User App] --> APIGW[API Gateway]
 
+    APIGW --> US[user-service]
     APIGW --> ST[station-service]
     APIGW --> BK[booking-service]
     APIGW --> SS[session-service]
     APIGW --> BL[billing-service]
 
+    US --> USDB[(User DB)]
     ST --> STDB[(Station DB)]
     BK --> BKDB[(Booking DB)]
     SS --> SSDB[(Session DB)]

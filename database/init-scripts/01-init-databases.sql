@@ -1,10 +1,15 @@
 -- 01-init-databases.sql
 -- Script inisialisasi database per service, roles, & ekstensi PostgreSQL
 
+CREATE DATABASE user_db;
 CREATE DATABASE station_db;
 CREATE DATABASE booking_db;
 CREATE DATABASE session_db;
 CREATE DATABASE billing_db;
+
+-- Koneksi ke user_db
+\c user_db;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Koneksi ke booking_db untuk install btree_gist extension (Wajib untuk Range Exclusion Constraint)
 \c booking_db;

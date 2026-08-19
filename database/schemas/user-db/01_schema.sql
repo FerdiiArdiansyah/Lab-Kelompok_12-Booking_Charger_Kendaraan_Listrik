@@ -1,0 +1,42 @@
+-- user-db DDL Schema
+-- Service: user-service
+-- Database: user_db
+
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'USER', -- USER, ADMIN
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, INACTIVE, SUSPENDED
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_vehicles (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    brand VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    license_plate VARCHAR(20) NOT NULL UNIQUE,
+    connector_type VARCHAR(50) NOT NULL, -- CCS2, TYPE2, CHADEMO
+    battery_capacity_kwh DECIMAL(8, 2) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION update_users_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = CURRENT_TIMESTAMP;
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE PROCEDURE update_users_updated_at();
+
+CREATE TRIGGER update_user_vehicles_updated_at BEFORE UPDATE ON user_vehicles
+FOR EACH ROW EXECUTE PROCEDURE update_users_updated_at();

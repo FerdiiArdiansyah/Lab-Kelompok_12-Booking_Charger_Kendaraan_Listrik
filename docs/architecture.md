@@ -10,6 +10,16 @@ Sistem Booking Charger Kendaraan Listrik dirancang untuk:
 
 ## 2. Bounded Context dan Service
 
+### user-service
+Tanggung jawab:
+- registrasi dan autentikasi user,
+- manajemen profil dan kendaraan listrik,
+- penerbitan token JWT.
+
+Data utama:
+- User(id, name, email, passwordHash, role, status)
+- UserVehicle(id, userId, brand, model, licensePlate, connectorType, batteryCapacityKwh)
+
 ### station-service
 Tanggung jawab:
 - data stasiun (lokasi, kapasitas daya),
@@ -135,6 +145,14 @@ Implementasi:
 - Partitioning tabel booking berdasarkan station_id atau waktu jika volume tinggi.
 
 ## 7. API Ringkas yang Disarankan
+
+user-service:
+- POST /auth/register
+- POST /auth/login
+- GET /users/me
+- PUT /users/me
+- GET /users/me/vehicles
+- POST /users/me/vehicles
 
 station-service:
 - GET /stations
