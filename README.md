@@ -1,8 +1,6 @@
 # Lab-Kelompok_12-Booking_Charger_Kendaraan_Listrik
 
-![Arsitektur Sistem Booking Charger Kendaraan Listrik](arsitektur.png)
-
-## Ringkasan Proyek
+![Arsitektur Sistem Booking Charger Kendaraan Listrik](arsitektur-v2.png)
 Sistem ini dirancang untuk proses booking charger kendaraan listrik dengan kapasitas slot terbatas.
 
 Tantangan utama:
@@ -172,12 +170,12 @@ Daftar keputusan arsitektur:
 
 ## Diagram
 - Diagram teknis (Mermaid): [docs/diagrams.md](docs/diagrams.md)
-- Ringkasan arsitektur: [arsitektur.png](arsitektur.png)
+- Ringkasan arsitektur: [arsitektur-v2.png](arsitektur-v2.png)
 - Ringkasan sequence: [sequence_diagram.png](sequence_diagram.png)
 
 ### Preview Arsitektur
 
-![Arsitektur Sistem Booking Charger Kendaraan Listrik](arsitektur.png)
+![Arsitektur Sistem Booking Charger Kendaraan Listrik](arsitektur-v2.png)
 
 ### Preview Sequence
 
