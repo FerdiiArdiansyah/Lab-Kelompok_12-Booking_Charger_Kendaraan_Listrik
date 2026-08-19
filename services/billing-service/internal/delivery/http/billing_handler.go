@@ -11,13 +11,8 @@ type BillingHandler struct {
 	usecase domain.BillingUsecase
 }
 
-func NewBillingHandler(e *echo.Echo, u domain.BillingUsecase) {
-	h := &BillingHandler{usecase: u}
-
-	e.POST("/invoices/generate", h.GenerateInvoice)
-	e.GET("/invoices/:id", h.GetInvoiceByID)
-	e.POST("/payments", h.ProcessPayment)
-	e.POST("/payments/:id/confirm", h.ConfirmPayment)
+func NewBillingHandler(u domain.BillingUsecase) *BillingHandler {
+	return &BillingHandler{usecase: u}
 }
 
 type GenerateInvoiceRequest struct {
@@ -26,6 +21,7 @@ type GenerateInvoiceRequest struct {
 	TariffID    string  `json:"tariff_id"`
 	ConsumedKwh float64 `json:"consumed_kwh"`
 	PricePerKwh float64 `json:"price_per_kwh"`
+	ServiceFee  float64 `json:"service_fee"`
 }
 
 type ProcessPaymentRequest struct {
@@ -44,7 +40,7 @@ func (h *BillingHandler) GenerateInvoice(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
 	}
 
-	invoice, err := h.usecase.GenerateInvoice(c.Request().Context(), req.SessionID, req.UserID, req.TariffID, req.ConsumedKwh, req.PricePerKwh)
+	invoice, err := h.usecase.GenerateInvoice(c.Request().Context(), req.SessionID, req.UserID, req.TariffID, req.ConsumedKwh, req.PricePerKwh, req.ServiceFee)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
@@ -68,6 +64,30 @@ func (h *BillingHandler) GetInvoiceByID(c echo.Context) error {
 	})
 }
 
+func (h *BillingHandler) GetInvoiceBySessionID(c echo.Context) error {
+	sessionID := c.Param("session_id")
+	invoice, err := h.usecase.GetInvoiceBySessionID(c.Request().Context(), sessionID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   invoice,
+	})
+}
+
+func (h *BillingHandler) GetInvoicesByUserID(c echo.Context) error {
+	userID := c.Param("user_id")
+	invoices, err := h.usecase.GetInvoicesByUserID(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   invoices,
+	})
+}
+
 func (h *BillingHandler) ProcessPayment(c echo.Context) error {
 	var req ProcessPaymentRequest
 	if err := c.Bind(&req); err != nil {
@@ -86,13 +106,25 @@ func (h *BillingHandler) ProcessPayment(c echo.Context) error {
 	})
 }
 
+func (h *BillingHandler) GetPaymentByID(c echo.Context) error {
+	id := c.Param("id")
+	payment, err := h.usecase.GetPaymentByID(c.Request().Context(), id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   payment,
+	})
+}
+
 func (h *BillingHandler) ConfirmPayment(c echo.Context) error {
 	id := c.Param("id")
 	var req ConfirmPaymentRequest
 	_ = c.Bind(&req)
 
 	if req.TransactionRef == "" {
-		req.TransactionRef = "TX-DEFAULT-REF"
+		req.TransactionRef = "TX-REF-" + id
 	}
 
 	payment, err := h.usecase.ConfirmPayment(c.Request().Context(), id, req.TransactionRef)

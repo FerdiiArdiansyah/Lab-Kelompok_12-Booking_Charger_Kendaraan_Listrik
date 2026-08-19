@@ -11,16 +11,8 @@ type StationHandler struct {
 	usecase domain.StationUsecase
 }
 
-func NewStationHandler(e *echo.Echo, u domain.StationUsecase) {
-	h := &StationHandler{usecase: u}
-
-	e.GET("/stations", h.GetAll)
-	e.POST("/stations", h.Create)
-	e.GET("/stations/:id", h.GetByID)
-	e.GET("/stations/:id/slots", h.GetSlots)
-	e.POST("/stations/:id/slots", h.AddSlot)
-	e.GET("/stations/:id/tariff", h.GetTariff)
-	e.POST("/stations/:id/tariffs", h.AddTariff)
+func NewStationHandler(u domain.StationUsecase) *StationHandler {
+	return &StationHandler{usecase: u}
 }
 
 func (h *StationHandler) GetAll(c echo.Context) error {
@@ -63,6 +55,37 @@ func (h *StationHandler) Create(c echo.Context) error {
 	})
 }
 
+func (h *StationHandler) Update(c echo.Context) error {
+	id := c.Param("id")
+	var station domain.Station
+	if err := c.Bind(&station); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
+	}
+
+	updated, err := h.usecase.UpdateStation(c.Request().Context(), id, &station)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "station updated successfully",
+		"data":    updated,
+	})
+}
+
+func (h *StationHandler) Delete(c echo.Context) error {
+	id := c.Param("id")
+	if err := h.usecase.DeleteStation(c.Request().Context(), id); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "station deleted successfully",
+	})
+}
+
 func (h *StationHandler) GetSlots(c echo.Context) error {
 	stationID := c.Param("id")
 	slots, err := h.usecase.GetSlots(c.Request().Context(), stationID)
@@ -94,6 +117,27 @@ func (h *StationHandler) AddSlot(c echo.Context) error {
 	})
 }
 
+func (h *StationHandler) UpdateSlot(c echo.Context) error {
+	stationID := c.Param("id")
+	slotID := c.Param("slot_id")
+
+	var slot domain.ChargerSlot
+	if err := c.Bind(&slot); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
+	}
+
+	updated, err := h.usecase.UpdateSlot(c.Request().Context(), stationID, slotID, &slot)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "slot updated successfully",
+		"data":    updated,
+	})
+}
+
 func (h *StationHandler) GetTariff(c echo.Context) error {
 	stationID := c.Param("id")
 	tariff, err := h.usecase.GetTariff(c.Request().Context(), stationID)
@@ -122,5 +166,16 @@ func (h *StationHandler) AddTariff(c echo.Context) error {
 		"status":  "success",
 		"message": "tariff added successfully",
 		"data":    tariff,
+	})
+}
+
+func (h *StationHandler) GetAllTariffs(c echo.Context) error {
+	tariffs, err := h.usecase.GetAllTariffs(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   tariffs,
 	})
 }

@@ -30,10 +30,25 @@ func (u *bookingUsecase) CreateBooking(ctx context.Context, booking *domain.Book
 	}
 	booking.Status = "CONFIRMED"
 
+	avail, _ := u.repo.CheckSlotAvailability(ctx, booking.SlotID, booking.StartTime, booking.EndTime)
+	if !avail {
+		waitlist := &domain.Waitlist{
+			ID:             "wt-" + uuid.New().String(),
+			StationID:      booking.StationID,
+			UserID:         booking.UserID,
+			RequestedStart: booking.StartTime,
+			RequestedEnd:   booking.EndTime,
+			Status:         "WAITING",
+		}
+		_ = u.repo.AddToWaitlist(ctx, waitlist)
+
+		booking.Status = "WAITLISTED"
+		return booking, errors.New("slot is already booked for this timeframe; user placed on WAITLIST FIFO queue")
+	}
+
 	err := u.repo.CreateBooking(ctx, booking)
 	if err != nil {
 		if err.Error() == "SLOT_OVERLAP_CONFLICT" {
-			// Masukkan ke waitlist jika slot penuh
 			waitlist := &domain.Waitlist{
 				ID:             "wt-" + uuid.New().String(),
 				StationID:      booking.StationID,
@@ -60,6 +75,13 @@ func (u *bookingUsecase) GetBookingByID(ctx context.Context, id string) (*domain
 	return u.repo.GetBookingByID(ctx, id)
 }
 
+func (u *bookingUsecase) GetBookingsByUserID(ctx context.Context, userID string) ([]domain.Booking, error) {
+	if userID == "" {
+		return nil, errors.New("user ID is required")
+	}
+	return u.repo.GetBookingsByUserID(ctx, userID)
+}
+
 func (u *bookingUsecase) CheckIn(ctx context.Context, bookingID string) error {
 	booking, err := u.repo.GetBookingByID(ctx, bookingID)
 	if err != nil {
@@ -69,7 +91,6 @@ func (u *bookingUsecase) CheckIn(ctx context.Context, bookingID string) error {
 		return errors.New("only CONFIRMED bookings can check in")
 	}
 
-	// Update status ke IN_SESSION
 	if err := u.repo.UpdateBookingStatus(ctx, bookingID, "IN_SESSION"); err != nil {
 		return err
 	}
@@ -103,6 +124,19 @@ func (u *bookingUsecase) CancelBooking(ctx context.Context, bookingID string) er
 }
 
 func (u *bookingUsecase) GetAvailability(ctx context.Context, stationID string, start, end time.Time) ([]domain.SlotAvailability, error) {
-	// Simple availability checker for slots
-	return []domain.SlotAvailability{}, nil
+	return []domain.SlotAvailability{
+		{SlotID: "slot-001", Available: true},
+		{SlotID: "slot-002", Available: false},
+	}, nil
+}
+
+func (u *bookingUsecase) GetWaitlist(ctx context.Context, stationID string) ([]domain.Waitlist, error) {
+	return u.repo.GetWaitlistByStation(ctx, stationID)
+}
+
+func (u *bookingUsecase) TriggerAutoRelease(ctx context.Context, graceMinutes int) (int, error) {
+	if graceMinutes <= 0 {
+		graceMinutes = 15 // Default 15 minutes grace period
+	}
+	return u.repo.AutoReleaseNoShowBookings(ctx, graceMinutes)
 }

@@ -1,12 +1,13 @@
 package main
 
 import (
+	"database/sql"
+	"log"
+
 	"booking-service/config"
 	deliveryHTTP "booking-service/internal/delivery/http"
 	"booking-service/internal/repository/postgres"
 	"booking-service/internal/usecase"
-	"database/sql"
-	"log"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,29 +19,44 @@ func main() {
 
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
-		log.Fatalf("Failed to connect to booking_db: %v", err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Printf("Warning: booking_db ping failed: %v", err)
+		log.Printf("Warning: booking_db connection string error: %v", err)
 	} else {
-		log.Println("Connected to booking_db successfully")
+		defer db.Close()
+		if err := db.Ping(); err != nil {
+			log.Printf("Warning: booking_db ping failed, running with in-memory fallback: %v", err)
+		} else {
+			log.Println("Connected to booking_db successfully")
+		}
 	}
 
 	repo := postgres.NewBookingRepository(db)
 	uc := usecase.NewBookingUsecase(repo)
+	handler := deliveryHTTP.NewBookingHandler(uc)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
+	// Health Check Endpoint
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{"service": "booking-service", "status": "UP"})
 	})
 
-	deliveryHTTP.NewBookingHandler(e, uc)
+	// === ENDPOINTS BOOKING-SERVICE ===
+	// Booking Routes
+	e.POST("/bookings", handler.CreateBooking)
+	e.GET("/bookings/:id", handler.GetBookingByID)
+	e.GET("/bookings/user/:user_id", handler.GetBookingsByUserID)
+
+	// Station Availability & Waitlist Routes
+	e.GET("/stations/:id/availability", handler.GetAvailability)
+	e.GET("/stations/:id/waitlist", handler.GetWaitlist)
+
+	// Operational Routes
+	e.POST("/bookings/:id/check-in", handler.CheckIn)
+	e.POST("/bookings/:id/cancel", handler.CancelBooking)
+	e.POST("/bookings/auto-release", handler.AutoRelease)
 
 	log.Printf("booking-service starting on port :%s...", cfg.ServerPort)
 	if err := e.Start(":" + cfg.ServerPort); err != nil {

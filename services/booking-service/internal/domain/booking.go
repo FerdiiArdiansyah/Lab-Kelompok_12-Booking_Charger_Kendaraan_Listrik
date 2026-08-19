@@ -38,17 +38,22 @@ type SlotAvailability struct {
 type BookingRepository interface {
 	CreateBooking(ctx context.Context, booking *Booking) error
 	GetBookingByID(ctx context.Context, id string) (*Booking, error)
+	GetBookingsByUserID(ctx context.Context, userID string) ([]Booking, error)
 	UpdateBookingStatus(ctx context.Context, id string, status string) error
 	CheckSlotAvailability(ctx context.Context, slotID string, start, end time.Time) (bool, error)
 	AddToWaitlist(ctx context.Context, waitlist *Waitlist) error
 	GetWaitlistByStation(ctx context.Context, stationID string) ([]Waitlist, error)
+	AutoReleaseNoShowBookings(ctx context.Context, graceMinutes int) (int, error)
 	SaveOutboxEvent(ctx context.Context, aggregateType, aggregateID, eventType string, payload interface{}) error
 }
 
 type BookingUsecase interface {
 	CreateBooking(ctx context.Context, booking *Booking) (*Booking, error)
 	GetBookingByID(ctx context.Context, id string) (*Booking, error)
+	GetBookingsByUserID(ctx context.Context, userID string) ([]Booking, error)
 	CheckIn(ctx context.Context, bookingID string) error
 	CancelBooking(ctx context.Context, bookingID string) error
 	GetAvailability(ctx context.Context, stationID string, start, end time.Time) ([]SlotAvailability, error)
+	GetWaitlist(ctx context.Context, stationID string) ([]Waitlist, error)
+	TriggerAutoRelease(ctx context.Context, graceMinutes int) (int, error)
 }

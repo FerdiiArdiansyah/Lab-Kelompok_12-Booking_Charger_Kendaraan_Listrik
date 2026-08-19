@@ -3,6 +3,8 @@ package http
 import (
 	"booking-service/internal/domain"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -11,13 +13,8 @@ type BookingHandler struct {
 	usecase domain.BookingUsecase
 }
 
-func NewBookingHandler(e *echo.Echo, u domain.BookingUsecase) {
-	h := &BookingHandler{usecase: u}
-
-	e.POST("/bookings", h.CreateBooking)
-	e.GET("/bookings/:id", h.GetBookingByID)
-	e.POST("/bookings/:id/check-in", h.CheckIn)
-	e.POST("/bookings/:id/cancel", h.CancelBooking)
+func NewBookingHandler(u domain.BookingUsecase) *BookingHandler {
+	return &BookingHandler{usecase: u}
 }
 
 func (h *BookingHandler) CreateBooking(c echo.Context) error {
@@ -57,6 +54,53 @@ func (h *BookingHandler) GetBookingByID(c echo.Context) error {
 	})
 }
 
+func (h *BookingHandler) GetBookingsByUserID(c echo.Context) error {
+	userID := c.Param("user_id")
+	list, err := h.usecase.GetBookingsByUserID(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   list,
+	})
+}
+
+func (h *BookingHandler) GetAvailability(c echo.Context) error {
+	stationID := c.Param("id")
+	startStr := c.QueryParam("start")
+	endStr := c.QueryParam("end")
+
+	var start, end time.Time
+	if startStr != "" {
+		start, _ = time.Parse(time.RFC3339, startStr)
+	}
+	if endStr != "" {
+		end, _ = time.Parse(time.RFC3339, endStr)
+	}
+
+	list, err := h.usecase.GetAvailability(c.Request().Context(), stationID, start, end)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   list,
+	})
+}
+
+func (h *BookingHandler) GetWaitlist(c echo.Context) error {
+	stationID := c.Param("id")
+	list, err := h.usecase.GetWaitlist(c.Request().Context(), stationID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   list,
+	})
+}
+
 func (h *BookingHandler) CheckIn(c echo.Context) error {
 	id := c.Param("id")
 	if err := h.usecase.CheckIn(c.Request().Context(), id); err != nil {
@@ -76,5 +120,21 @@ func (h *BookingHandler) CancelBooking(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"status":  "success",
 		"message": "booking cancelled successfully",
+	})
+}
+
+func (h *BookingHandler) AutoRelease(c echo.Context) error {
+	graceStr := c.QueryParam("grace_period_minutes")
+	grace, _ := strconv.Atoi(graceStr)
+
+	count, err := h.usecase.TriggerAutoRelease(c.Request().Context(), grace)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":         "success",
+		"message":        "auto-release processed",
+		"released_count": count,
 	})
 }

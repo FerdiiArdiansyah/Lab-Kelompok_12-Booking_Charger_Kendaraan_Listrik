@@ -1,188 +1,140 @@
-# Arsitektur Sistem
+# Arsitektur Sistem Booking Charger Kendaraan Listrik
 
-## 1. Tujuan
+## 1. Tujuan Sistem
 Sistem Booking Charger Kendaraan Listrik dirancang untuk:
-- mencegah bentrok slot pada rentang waktu yang bertabrakan,
-- menangani lonjakan permintaan pada jam sibuk,
-- melepaskan slot otomatis saat no-show,
-- memastikan tagihan berdasarkan kWh aktual,
-- tetap konsisten tanpa mengorbankan skalabilitas.
+- Mencegah bentrok slot pada rentang waktu yang bertabrakan (anti-overlap),
+- Menangani lonjakan permintaan pada jam sibuk dengan antrean FIFO (waitlist),
+- Melepaskan slot otomatis saat pengguna mengalami no-show,
+- Memastikan tagihan berdasarkan konsumsi kWh aktual dan regulasi tarif ESDM (Fast & Ultra Fast charging service fee),
+- Menjamin konsistensi data antar domain berbasis Event-Driven Microservices.
+
+---
 
 ## 2. Bounded Context dan Service
 
-### user-service
+### 2.1 user-service (Port: 8084)
 Tanggung jawab:
-- registrasi dan autentikasi user,
-- manajemen profil dan kendaraan listrik,
-- penerbitan token JWT.
+- Registrasi dan autentikasi user (JWT Auth),
+- Manajemen profil pengguna dan hak akses (Role: USER, ADMIN, OPERATOR),
+- Manajemen data kendaraan listrik (EV) terdaftar milik pengguna.
 
 Data utama:
-- User(id, name, email, passwordHash, role, status)
-- UserVehicle(id, userId, brand, model, licensePlate, connectorType, batteryCapacityKwh)
+- `User(id, name, email, password_hash, phone, role, status, created_at, updated_at)`
+- `UserVehicle(id, user_id, brand, model, license_plate, connector_type, battery_capacity_kwh, created_at)`
 
-### station-service
+---
+
+### 2.2 station-service (Port: 8081)
 Tanggung jawab:
-- data stasiun (lokasi, kapasitas daya),
-- data slot charger,
-- tarif dasar per kWh,
-- status slot operasional (aktif/nonaktif).
+- Master data stasiun SPKLU (lokasi, koordinat GPS, kapasitas total daya kW),
+- Manajemen slot charger (nomor slot, tipe konektor, daya kW maksimal, status operasional),
+- Manajemen tarif per kWh dan biaya layanan.
 
 Data utama:
-- Station(id, name, location, totalPowerKw)
-- ChargerSlot(id, stationId, connectorType, maxPowerKw, status)
-- Tariff(id, stationId, pricePerKwh, validFrom)
+- `Station(id, name, location, latitude, longitude, total_power_kw, status)`
+- `ChargerSlot(id, station_id, slot_number, connector_type, max_power_kw, status)`
+- `Tariff(id, station_id, price_per_kwh, currency, valid_from, is_active)`
 
-### booking-service
+---
+
+### 2.3 booking-service (Port: 8082)
 Tanggung jawab:
-- membuat booking rentang waktu,
-- mencegah overlap booking slot,
-- antrean saat kapasitas penuh,
-- auto-release jika no-show.
+- Pembuatan dan reservasi slot rentang waktu (anti-overlap),
+- Manajemen antrean waitlist (FIFO) saat kapasitas penuh,
+- Penanganan check-in pengguna dan pembatalan booking,
+- Auto-release slot booking saat lewat grace period (no-show).
 
 Data utama:
-- Booking(id, userId, stationId, slotId, startTime, endTime, status)
-- Waitlist(id, stationId, requestedStart, requestedEnd, queueNumber, status)
+- `Booking(id, user_id, station_id, slot_id, start_time, end_time, status, idempotency_key)`
+- `Waitlist(id, station_id, user_id, requested_start, requested_end, queue_number, status)`
 
-Status booking:
-- REQUESTED
-- CONFIRMED
-- EXPIRED_NO_SHOW
-- CANCELLED
-- IN_SESSION
-- COMPLETED
+Status Booking:
+- `REQUESTED`, `CONFIRMED`, `WAITLISTED`, `IN_SESSION`, `COMPLETED`, `EXPIRED_NO_SHOW`, `CANCELLED`
 
-### session-service
+---
+
+### 2.4 session-service (Port: 8083)
 Tanggung jawab:
-- mulai sesi charging,
-- tracking pemakaian kWh,
-- selesai sesi,
-- publish pemakaian akhir.
+- Memulai dan menghentikan sesi pengisian daya (*charging session*),
+- Pelacakan telemetry / meteran listrik (*real-time kWh meter reading*),
+- Publish event konsumsi kWh final saat sesi pengisian selesai.
 
 Data utama:
-- ChargingSession(id, bookingId, startedAt, endedAt, consumedKwh, status)
+- `ChargingSession(id, booking_id, slot_id, user_id, started_at, ended_at, consumed_kwh, status)`
+- `MeterReading(id, session_id, recorded_at, current_kwh, power_kw, voltage, current_ampere)`
 
-### billing-service
+---
+
+### 2.5 billing-service (Port: 8085)
 Tanggung jawab:
-- hitung tagihan dari consumedKwh,
-- terapkan tarif yang berlaku,
-- proses pembayaran,
-- simpan invoice.
+- Perhitungan invoice berdasarkan pemakaian kWh aktual & komponen biaya layanan ESDM,
+- Penerapan PPN (11%) & Pajak Penerangan Jalan (PPJ),
+- Eksekusi dan konfirmasi transaksi pembayaran (QRIS, VA, E-Wallet, Credit Card),
+- Penyimpanan audit log perubahan status invoice.
 
 Data utama:
-- Invoice(id, sessionId, tariffId, consumedKwh, subtotal, tax, total, status)
-- Payment(id, invoiceId, method, amount, status, paidAt)
+- `Invoice(id, session_id, user_id, tariff_id, consumed_kwh, price_per_kwh, service_fee, subtotal, tax, total, status)`
+- `Payment(id, invoice_id, payment_method, amount, status, transaction_ref, paid_at)`
 
-## 3. Gaya Arsitektur
-- Microservices per domain utama.
-- Database per service (no shared database).
-- Komunikasi sinkron untuk query cepat (HTTP/gRPC).
-- Komunikasi asinkron berbasis event untuk proses lintas domain.
+---
 
-Event kunci:
-- BookingConfirmed
-- BookingExpiredNoShow
-- SessionStarted
-- SessionFinished
-- InvoiceCreated
-- PaymentCompleted
+## 3. Daftar Lengkap API Endpoint per Service
 
-## 4. Aturan Konsistensi Kritis
+### 🔑 1. user-service (`:8084`)
+* **`POST /auth/register`** — Registrasi pengguna baru
+* **`POST /auth/login`** — Autentikasi & penerbitan token JWT
+* **`GET /users/me`** — Ambil profil pengguna aktif
+* **`PUT /users/me`** — Perbarui profil pengguna
+* **`GET /users`** — Daftar seluruh pengguna (*Admin*)
+* **`GET /users/:id`** — Detail pengguna berdasarkan ID
+* **`GET /users/me/vehicles`** — Daftar kendaraan listrik milik pengguna
+* **`POST /users/me/vehicles`** — Tambah kendaraan listrik baru
+* **`DELETE /users/me/vehicles/:vehicle_id`** — Hapus kendaraan listrik
 
-### 4.1 Anti-overlap booking
-Aturan:
-- satu slot tidak boleh punya dua booking berstatus aktif pada waktu bertabrakan.
+### ⚡ 2. station-service (`:8081`)
+* **`GET /stations`** — Daftar seluruh stasiun SPKLU
+* **`POST /stations`** — Tambah stasiun pengisian baru
+* **`GET /stations/:id`** — Detail stasiun beserta slot & tarif aktif
+* **`PUT /stations/:id`** — Update informasi stasiun
+* **`DELETE /stations/:id`** — Deaktivasi / hapus stasiun
+* **`GET /stations/:id/slots`** — Daftar slot charger pada stasiun
+* **`POST /stations/:id/slots`** — Tambah slot charger ke stasiun
+* **`PUT /stations/:id/slots/:slot_id`** — Update status / spesifikasi slot
+* **`GET /stations/:id/tariff`** — Ambil tarif aktif stasiun
+* **`POST /stations/:id/tariffs`** — Tambah / perbarui tarif stasiun
+* **`GET /tariffs`** — Daftar seluruh tarif yang terdaftar
 
-Implementasi di booking-service:
-- transaksi database dengan isolation minimal REPEATABLE READ atau SERIALIZABLE untuk operasi booking,
-- exclusion constraint (jika PostgreSQL) pada interval waktu per slot,
-- idempotency key untuk create booking API,
-- unique booking reference.
+### 📅 3. booking-service (`:8082`)
+* **`POST /bookings`** — Buat booking slot charger (dengan validasi anti-overlap & fallback waitlist)
+* **`GET /bookings/:id`** — Detail booking berdasarkan ID
+* **`GET /bookings/user/:user_id`** — Riwayat booking milik pengguna
+* **`GET /stations/:id/availability`** — Cek ketersediaan slot stasiun pada rentang waktu (`?start=&end=`)
+* **`GET /stations/:id/waitlist`** — Daftar antrean waitlist stasiun
+* **`POST /bookings/:id/check-in`** — Check-in lokasi & aktifkan status sesi
+* **`POST /bookings/:id/cancel`** — Pembatalan booking oleh pengguna
+* **`POST /bookings/auto-release`** — Trigger otomatis pelepas booking no-show (`?grace_period_minutes=15`)
 
-Contoh konsep constraint PostgreSQL:
-- EXCLUDE USING gist (slot_id WITH =, tsrange(start_time, end_time, '[)') WITH &&)
+### 🔌 4. session-service (`:8083`)
+* **`POST /sessions/start`** — Mulai sesi pengisian daya
+* **`GET /sessions/:id`** — Detail sesi pengisian & telemetry meteran
+* **`GET /sessions/booking/:booking_id`** — Ambil sesi pengisian berdasarkan ID booking
+* **`GET /sessions/user/:user_id`** — Riwayat sesi pengisian pengguna
+* **`POST /sessions/:id/meter`** — Kirim pembacaan meter kWh real-time
+* **`POST /sessions/:id/finish`** — Akhiri sesi pengisian & finalisasi total kWh
 
-### 4.2 No-show auto-release
-Aturan:
-- booking CONFIRMED harus check-in sebelum grace period berakhir.
+### 💳 5. billing-service (`:8085`)
+* **`POST /invoices`** — Generasi invoice pengisian dari kWh & tarif
+* **`POST /invoices/generate`** — Endpoint alternatif pembuat invoice
+* **`GET /invoices/:id`** — Detail rincian invoice
+* **`GET /invoices/session/:session_id`** — Ambil invoice berdasarkan ID sesi
+* **`GET /invoices/user/:user_id`** — Riwayat invoice milik pengguna
+* **`POST /payments`** — Inisiasi transaksi pembayaran invoice
+* **`GET /payments/:id`** — Detail status transaksi pembayaran
+* **`POST /payments/:id/confirm`** — Konfirmasi/Webhook penyelesaian pembayaran
 
-Implementasi:
-- scheduler di booking-service memeriksa booking yang melewati startTime + gracePeriod,
-- ubah status menjadi EXPIRED_NO_SHOW,
-- publish BookingExpiredNoShow,
-- proses waitlist untuk promosi antrian berikutnya.
+---
 
-### 4.3 Konsistensi antar service
-- Gunakan eventual consistency antar service via event bus.
-- Gunakan outbox pattern per service untuk reliabilitas publish event.
-- Consumer wajib idempotent memakai eventId/version.
-
-## 5. Alur Utama
-
-### Alur booking
-1. User request booking (station, waktu, preferensi slot).
-2. booking-service cek slot tersedia dan cek overlap.
-3. Jika ada slot valid, booking CONFIRMED.
-4. Jika tidak ada, user masuk waitlist.
-5. Event BookingConfirmed dipublish.
-
-### Alur check-in dan sesi
-1. User datang dan check-in sebelum grace period habis.
-2. session-service menerima perintah start session berdasarkan booking valid.
-3. Status booking berubah menjadi IN_SESSION.
-4. SessionFinished dipublish saat charging selesai.
-
-### Alur billing
-1. billing-service consume SessionFinished.
-2. Ambil tarif dari station-service (atau cache tarif terverifikasi).
-3. Buat invoice dari consumedKwh x pricePerKwh.
-4. Pembayaran diproses, status invoice diperbarui.
-
-## 6. Ketahanan Saat Jam Sibuk
-- Rate limiting per user untuk endpoint booking.
-- Prioritas antrean FIFO per stasiun dan window waktu.
-- Optimistic retry terbatas pada konflik booking.
-- Read model/caching untuk ketersediaan slot agar query cepat.
-- Partitioning tabel booking berdasarkan station_id atau waktu jika volume tinggi.
-
-## 7. API Ringkas yang Disarankan
-
-user-service:
-- POST /auth/register
-- POST /auth/login
-- GET /users/me
-- PUT /users/me
-- GET /users/me/vehicles
-- POST /users/me/vehicles
-
-station-service:
-- GET /stations
-- GET /stations/{id}/slots
-- GET /stations/{id}/tariff
-
-booking-service:
-- POST /bookings
-- POST /bookings/{id}/check-in
-- POST /bookings/{id}/cancel
-- GET /stations/{id}/availability?start=&end=
-
-session-service:
-- POST /sessions/start
-- POST /sessions/{id}/meter
-- POST /sessions/{id}/finish
-
-billing-service:
-- GET /invoices/{id}
-- POST /payments
-
-## 8. Keamanan dan Audit
-- JWT/OAuth2 antar client dan API gateway.
-- mTLS antar service internal.
-- Audit log immutable untuk perubahan status booking, session, invoice, dan payment.
-- Korelasi tracing memakai correlationId.
-
-## 9. Teknologi yang Cocok
-- Runtime: Java/Spring Boot, Node.js, atau Go (pilih seragam tim).
-- Database transaksional: PostgreSQL (direkomendasikan untuk range constraint).
-- Message broker: Kafka atau RabbitMQ.
-- Cache: Redis untuk availability read model.
-- Observability: OpenTelemetry + Prometheus + Grafana.
+## 4. Pola Integrasi dan Konsistensi
+1. **Outbox Pattern**: Setiap mutasi status utama (Booking, Session, Payment) menyimpan event ke tabel `outbox_events` dalam transaksi basis data yang sama.
+2. **Event Bus Asinkron**: Event dipublish ke broker (RabbitMQ/Kafka) untuk konsistensi antar-service (eventual consistency).
+3. **Idempotensi**: Seluruh API mutasi (Create Booking, Start Session, Payment Process) mendukung `idempotency_key`.

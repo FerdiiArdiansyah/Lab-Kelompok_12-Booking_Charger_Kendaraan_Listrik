@@ -52,6 +52,20 @@ func (u *sessionUsecase) GetSessionByID(ctx context.Context, id string) (*domain
 	return u.repo.GetSessionByID(ctx, id)
 }
 
+func (u *sessionUsecase) GetSessionByBookingID(ctx context.Context, bookingID string) (*domain.ChargingSession, error) {
+	if bookingID == "" {
+		return nil, errors.New("booking ID is required")
+	}
+	return u.repo.GetSessionByBookingID(ctx, bookingID)
+}
+
+func (u *sessionUsecase) GetSessionsByUserID(ctx context.Context, userID string) ([]domain.ChargingSession, error) {
+	if userID == "" {
+		return nil, errors.New("user ID is required")
+	}
+	return u.repo.GetSessionsByUserID(ctx, userID)
+}
+
 func (u *sessionUsecase) RecordMeter(ctx context.Context, sessionID string, currentKwh, powerKw, voltage, ampere float64) error {
 	session, err := u.repo.GetSessionByID(ctx, sessionID)
 	if err != nil {

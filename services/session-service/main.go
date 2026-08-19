@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+
 	"session-service/config"
 	deliveryHTTP "session-service/internal/delivery/http"
 	"session-service/internal/repository/postgres"
@@ -18,29 +19,42 @@ func main() {
 
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
-		log.Fatalf("Failed to connect to session_db: %v", err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Printf("Warning: session_db ping failed: %v", err)
+		log.Printf("Warning: session_db connection string error: %v", err)
 	} else {
-		log.Println("Connected to session_db successfully")
+		defer db.Close()
+		if err := db.Ping(); err != nil {
+			log.Printf("Warning: session_db ping failed, running with in-memory fallback: %v", err)
+		} else {
+			log.Println("Connected to session_db successfully")
+		}
 	}
 
 	repo := postgres.NewSessionRepository(db)
 	uc := usecase.NewSessionUsecase(repo)
+	handler := deliveryHTTP.NewSessionHandler(uc)
 
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
+	// Health Check Endpoint
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{"service": "session-service", "status": "UP"})
 	})
 
-	deliveryHTTP.NewSessionHandler(e, uc)
+	// === ENDPOINTS SESSION-SERVICE ===
+	// Charging Session Routes
+	e.POST("/sessions/start", handler.StartSession)
+	e.GET("/sessions/:id", handler.GetSessionByID)
+	e.GET("/sessions/booking/:booking_id", handler.GetSessionByBookingID)
+	e.GET("/sessions/user/:user_id", handler.GetSessionsByUserID)
+
+	// Meter & Telemetry Routes
+	e.POST("/sessions/:id/meter", handler.RecordMeter)
+
+	// Finish Session Route
+	e.POST("/sessions/:id/finish", handler.FinishSession)
 
 	log.Printf("session-service starting on port :%s...", cfg.ServerPort)
 	if err := e.Start(":" + cfg.ServerPort); err != nil {

@@ -12,6 +12,7 @@ type Invoice struct {
 	TariffID    string     `json:"tariff_id"`
 	ConsumedKwh float64    `json:"consumed_kwh"`
 	PricePerKwh float64    `json:"price_per_kwh"`
+	ServiceFee  float64    `json:"service_fee"`
 	Subtotal    float64    `json:"subtotal"`
 	Tax         float64    `json:"tax"`
 	Total       float64    `json:"total"`
@@ -36,6 +37,7 @@ type BillingRepository interface {
 	CreateInvoice(ctx context.Context, invoice *Invoice) error
 	GetInvoiceByID(ctx context.Context, id string) (*Invoice, error)
 	GetInvoiceBySessionID(ctx context.Context, sessionID string) (*Invoice, error)
+	GetInvoicesByUserID(ctx context.Context, userID string) ([]Invoice, error)
 	UpdateInvoiceStatus(ctx context.Context, id string, status string) error
 	CreatePayment(ctx context.Context, payment *Payment) error
 	GetPaymentByID(ctx context.Context, id string) (*Payment, error)
@@ -45,8 +47,11 @@ type BillingRepository interface {
 }
 
 type BillingUsecase interface {
-	GenerateInvoice(ctx context.Context, sessionID, userID, tariffID string, consumedKwh, pricePerKwh float64) (*Invoice, error)
+	GenerateInvoice(ctx context.Context, sessionID, userID, tariffID string, consumedKwh, pricePerKwh, serviceFee float64) (*Invoice, error)
 	GetInvoiceByID(ctx context.Context, id string) (*Invoice, error)
+	GetInvoiceBySessionID(ctx context.Context, sessionID string) (*Invoice, error)
+	GetInvoicesByUserID(ctx context.Context, userID string) ([]Invoice, error)
 	ProcessPayment(ctx context.Context, invoiceID, paymentMethod string, amount float64) (*Payment, error)
+	GetPaymentByID(ctx context.Context, paymentID string) (*Payment, error)
 	ConfirmPayment(ctx context.Context, paymentID, transactionRef string) (*Payment, error)
 }

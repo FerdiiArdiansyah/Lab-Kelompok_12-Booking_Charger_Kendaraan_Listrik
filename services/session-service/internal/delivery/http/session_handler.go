@@ -11,34 +11,16 @@ type SessionHandler struct {
 	usecase domain.SessionUsecase
 }
 
-func NewSessionHandler(e *echo.Echo, u domain.SessionUsecase) {
-	h := &SessionHandler{usecase: u}
-
-	e.POST("/sessions/start", h.StartSession)
-	e.GET("/sessions/:id", h.GetSessionByID)
-	e.POST("/sessions/:id/meter", h.RecordMeter)
-	e.POST("/sessions/:id/finish", h.FinishSession)
-}
-
-type StartSessionRequest struct {
-	BookingID string `json:"booking_id"`
-	SlotID    string `json:"slot_id"`
-	UserID    string `json:"user_id"`
-}
-
-type MeterReadingRequest struct {
-	CurrentKwh float64 `json:"current_kwh"`
-	PowerKw    float64 `json:"power_kw"`
-	Voltage    float64 `json:"voltage"`
-	Ampere     float64 `json:"current_ampere"`
-}
-
-type FinishSessionRequest struct {
-	FinalKwh float64 `json:"consumed_kwh"`
+func NewSessionHandler(u domain.SessionUsecase) *SessionHandler {
+	return &SessionHandler{usecase: u}
 }
 
 func (h *SessionHandler) StartSession(c echo.Context) error {
-	var req StartSessionRequest
+	var req struct {
+		BookingID string `json:"booking_id"`
+		SlotID    string `json:"slot_id"`
+		UserID    string `json:"user_id"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
 	}
@@ -67,9 +49,38 @@ func (h *SessionHandler) GetSessionByID(c echo.Context) error {
 	})
 }
 
+func (h *SessionHandler) GetSessionByBookingID(c echo.Context) error {
+	bookingID := c.Param("booking_id")
+	session, err := h.usecase.GetSessionByBookingID(c.Request().Context(), bookingID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   session,
+	})
+}
+
+func (h *SessionHandler) GetSessionsByUserID(c echo.Context) error {
+	userID := c.Param("user_id")
+	sessions, err := h.usecase.GetSessionsByUserID(c.Request().Context(), userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"data":   sessions,
+	})
+}
+
 func (h *SessionHandler) RecordMeter(c echo.Context) error {
 	id := c.Param("id")
-	var req MeterReadingRequest
+	var req struct {
+		CurrentKwh float64 `json:"current_kwh"`
+		PowerKw    float64 `json:"power_kw"`
+		Voltage    float64 `json:"voltage"`
+		Ampere     float64 `json:"ampere"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
 	}
@@ -86,7 +97,9 @@ func (h *SessionHandler) RecordMeter(c echo.Context) error {
 
 func (h *SessionHandler) FinishSession(c echo.Context) error {
 	id := c.Param("id")
-	var req FinishSessionRequest
+	var req struct {
+		FinalKwh float64 `json:"final_kwh"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid payload"})
 	}

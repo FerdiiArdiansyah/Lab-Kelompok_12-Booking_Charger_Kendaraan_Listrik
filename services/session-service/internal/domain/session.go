@@ -33,6 +33,7 @@ type SessionRepository interface {
 	CreateSession(ctx context.Context, session *ChargingSession) error
 	GetSessionByID(ctx context.Context, id string) (*ChargingSession, error)
 	GetSessionByBookingID(ctx context.Context, bookingID string) (*ChargingSession, error)
+	GetSessionsByUserID(ctx context.Context, userID string) ([]ChargingSession, error)
 	AddMeterReading(ctx context.Context, reading *MeterReading) error
 	FinishSession(ctx context.Context, id string, endedAt time.Time, finalKwh float64) error
 	SaveOutboxEvent(ctx context.Context, aggregateType, aggregateID, eventType string, payload interface{}) error
@@ -41,6 +42,8 @@ type SessionRepository interface {
 type SessionUsecase interface {
 	StartSession(ctx context.Context, bookingID, slotID, userID string) (*ChargingSession, error)
 	GetSessionByID(ctx context.Context, id string) (*ChargingSession, error)
+	GetSessionByBookingID(ctx context.Context, bookingID string) (*ChargingSession, error)
+	GetSessionsByUserID(ctx context.Context, userID string) ([]ChargingSession, error)
 	RecordMeter(ctx context.Context, sessionID string, currentKwh, powerKw, voltage, ampere float64) error
 	FinishSession(ctx context.Context, sessionID string, finalKwh float64) (*ChargingSession, error)
 }

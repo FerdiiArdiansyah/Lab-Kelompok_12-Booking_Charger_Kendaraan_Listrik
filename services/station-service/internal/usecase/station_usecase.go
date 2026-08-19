@@ -40,6 +40,40 @@ func (u *stationUsecase) CreateStation(ctx context.Context, station *domain.Stat
 	return u.repo.Create(ctx, station)
 }
 
+func (u *stationUsecase) UpdateStation(ctx context.Context, id string, station *domain.Station) (*domain.Station, error) {
+	existing, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if station.Name != "" {
+		existing.Name = station.Name
+	}
+	if station.Location != "" {
+		existing.Location = station.Location
+	}
+	if station.Latitude != 0 {
+		existing.Latitude = station.Latitude
+	}
+	if station.Longitude != 0 {
+		existing.Longitude = station.Longitude
+	}
+	if station.TotalPower != 0 {
+		existing.TotalPower = station.TotalPower
+	}
+	if station.Status != "" {
+		existing.Status = station.Status
+	}
+
+	if err := u.repo.Update(ctx, existing); err != nil {
+		return nil, err
+	}
+	return existing, nil
+}
+
+func (u *stationUsecase) DeleteStation(ctx context.Context, id string) error {
+	return u.repo.Delete(ctx, id)
+}
+
 func (u *stationUsecase) GetSlots(ctx context.Context, stationID string) ([]domain.ChargerSlot, error) {
 	if stationID == "" {
 		return nil, errors.New("station ID is required")
@@ -58,6 +92,15 @@ func (u *stationUsecase) AddSlot(ctx context.Context, slot *domain.ChargerSlot) 
 		slot.Status = "AVAILABLE"
 	}
 	return u.repo.CreateSlot(ctx, slot)
+}
+
+func (u *stationUsecase) UpdateSlot(ctx context.Context, stationID, slotID string, slot *domain.ChargerSlot) (*domain.ChargerSlot, error) {
+	slot.ID = slotID
+	slot.StationID = stationID
+	if err := u.repo.UpdateSlot(ctx, slot); err != nil {
+		return nil, err
+	}
+	return slot, nil
 }
 
 func (u *stationUsecase) GetTariff(ctx context.Context, stationID string) (*domain.Tariff, error) {
@@ -79,4 +122,8 @@ func (u *stationUsecase) AddTariff(ctx context.Context, tariff *domain.Tariff) e
 	}
 	tariff.IsActive = true
 	return u.repo.CreateTariff(ctx, tariff)
+}
+
+func (u *stationUsecase) GetAllTariffs(ctx context.Context) ([]domain.Tariff, error) {
+	return u.repo.GetAllTariffs(ctx)
 }
