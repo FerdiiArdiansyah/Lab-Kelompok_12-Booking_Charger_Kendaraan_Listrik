@@ -1,0 +1,62 @@
+-- billing-db DDL Schema
+-- Service: billing-service
+-- Database: billing_db
+
+CREATE TABLE IF NOT EXISTS invoices (
+    id VARCHAR(36) PRIMARY KEY,
+    session_id VARCHAR(36) NOT NULL UNIQUE,
+    user_id VARCHAR(36) NOT NULL,
+    tariff_id VARCHAR(36) NOT NULL,
+    consumed_kwh DECIMAL(10, 3) NOT NULL,
+    price_per_kwh DECIMAL(12, 2) NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL,
+    tax DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    total DECIMAL(12, 2) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'UNPAID', -- UNPAID, PAID, VOID, REFUNDED
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id VARCHAR(36) PRIMARY KEY,
+    invoice_id VARCHAR(36) NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT,
+    payment_method VARCHAR(50) NOT NULL, -- QRIS, VA_BCA, E_WALLET_GOPAY, CREDIT_CARD
+    amount DECIMAL(12, 2) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING', -- PENDING, SUCCESS, FAILED, EXPIRED
+    transaction_ref VARCHAR(255),
+    paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    entity_name VARCHAR(100) NOT NULL,
+    entity_id VARCHAR(36) NOT NULL,
+    action VARCHAR(50) NOT NULL, -- INSERT, UPDATE, DELETE
+    old_value JSONB,
+    new_value JSONB,
+    performed_by VARCHAR(100) DEFAULT 'SYSTEM',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id VARCHAR(36) PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,
+    aggregate_id VARCHAR(36) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PUBLISHED, FAILED
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMPTZ
+);
+
+CREATE OR REPLACE FUNCTION update_invoices_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = CURRENT_TIMESTAMP;
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices
+FOR EACH ROW EXECUTE PROCEDURE update_invoices_updated_at();

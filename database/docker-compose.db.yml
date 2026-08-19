@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  ev_postgres:
+    image: postgres:16-alpine
+    container_name: ev_booking_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_MULTIPLE_DATABASES: station_db,booking_db,session_db,billing_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ev_network
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: ev_booking_pgbouncer
+    environment:
+      DB_HOST: ev_postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      LISTEN_PORT: 6432
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 20
+    ports:
+      - "6432:6432"
+    depends_on:
+      ev_postgres:
+        condition: service_healthy
+    networks:
+      - ev_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ev_network:
+    driver: bridge
