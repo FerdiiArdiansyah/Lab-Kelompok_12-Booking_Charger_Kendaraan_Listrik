@@ -44,7 +44,7 @@ func main() {
 	})
 
 	// === ENDPOINTS BILLING-SERVICE ===
-	// Invoice Routes
+	// Invoice Routesss
 	e.POST("/invoices", handler.GenerateInvoice)
 	e.POST("/invoices/generate", handler.GenerateInvoice)
 	e.GET("/invoices/:id", handler.GetInvoiceByID)

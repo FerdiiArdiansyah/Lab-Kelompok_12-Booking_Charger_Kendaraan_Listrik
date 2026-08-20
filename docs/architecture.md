@@ -8,7 +8,7 @@ Sistem Booking Charger Kendaraan Listrik dirancang untuk:
 - Memastikan tagihan berdasarkan konsumsi kWh aktual dan regulasi tarif ESDM (Fast & Ultra Fast charging service fee),
 - Menjamin konsistensi data antar domain berbasis Event-Driven Microservices.
 
----
+-----
 
 ## 2. Bounded Context dan Service
 
