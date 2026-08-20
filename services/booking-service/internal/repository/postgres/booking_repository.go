@@ -21,10 +21,59 @@ type bookingRepository struct {
 }
 
 func NewBookingRepository(db *sql.DB) domain.BookingRepository {
-	return &bookingRepository{
+	repo := &bookingRepository{
 		db:       db,
 		bookings: make(map[string]*domain.Booking),
 		waitlist: make(map[string]*domain.Waitlist),
+	}
+	repo.seedInitialData()
+	return repo
+}
+
+func (r *bookingRepository) seedInitialData() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+
+	// 11 Seeded Bookings
+	sampleBookings := []domain.Booking{
+		{ID: "bkg-001", UserID: "usr-001", StationID: "stn-001", SlotID: "slot-001", StartTime: now.Add(-2 * time.Hour), EndTime: now.Add(-1 * time.Hour), Status: "COMPLETED", IdempotencyKey: "idem-001", CreatedAt: now.Add(-3 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
+		{ID: "bkg-002", UserID: "usr-002", StationID: "stn-002", SlotID: "slot-003", StartTime: now.Add(-1 * time.Hour), EndTime: now.Add(1 * time.Hour), Status: "IN_SESSION", IdempotencyKey: "idem-002", CreatedAt: now.Add(-2 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
+		{ID: "bkg-003", UserID: "usr-003", StationID: "stn-003", SlotID: "slot-004", StartTime: now.Add(1 * time.Hour), EndTime: now.Add(2 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-003", CreatedAt: now, UpdatedAt: now},
+		{ID: "bkg-004", UserID: "usr-004", StationID: "stn-004", SlotID: "slot-006", StartTime: now.Add(2 * time.Hour), EndTime: now.Add(3 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-004", CreatedAt: now, UpdatedAt: now},
+		{ID: "bkg-005", UserID: "usr-005", StationID: "stn-005", SlotID: "slot-007", StartTime: now.Add(-4 * time.Hour), EndTime: now.Add(-3 * time.Hour), Status: "COMPLETED", IdempotencyKey: "idem-005", CreatedAt: now.Add(-5 * time.Hour), UpdatedAt: now.Add(-3 * time.Hour)},
+		{ID: "bkg-006", UserID: "usr-006", StationID: "stn-006", SlotID: "slot-008", StartTime: now.Add(3 * time.Hour), EndTime: now.Add(4 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-006", CreatedAt: now, UpdatedAt: now},
+		{ID: "bkg-007", UserID: "usr-007", StationID: "stn-007", SlotID: "slot-009", StartTime: now.Add(-5 * time.Hour), EndTime: now.Add(-4 * time.Hour), Status: "EXPIRED_NO_SHOW", IdempotencyKey: "idem-007", CreatedAt: now.Add(-6 * time.Hour), UpdatedAt: now.Add(-4 * time.Hour)},
+		{ID: "bkg-008", UserID: "usr-008", StationID: "stn-008", SlotID: "slot-010", StartTime: now.Add(4 * time.Hour), EndTime: now.Add(5 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-008", CreatedAt: now, UpdatedAt: now},
+		{ID: "bkg-009", UserID: "usr-009", StationID: "stn-010", SlotID: "slot-011", StartTime: now.Add(-3 * time.Hour), EndTime: now.Add(-2 * time.Hour), Status: "CANCELLED", IdempotencyKey: "idem-009", CreatedAt: now.Add(-4 * time.Hour), UpdatedAt: now.Add(-3 * time.Hour)},
+		{ID: "bkg-010", UserID: "usr-010", StationID: "stn-001", SlotID: "slot-002", StartTime: now.Add(5 * time.Hour), EndTime: now.Add(6 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-010", CreatedAt: now, UpdatedAt: now},
+		{ID: "bkg-011", UserID: "usr-011", StationID: "stn-003", SlotID: "slot-005", StartTime: now.Add(6 * time.Hour), EndTime: now.Add(7 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-011", CreatedAt: now, UpdatedAt: now},
+	}
+
+	for i := range sampleBookings {
+		b := sampleBookings[i]
+		r.bookings[b.ID] = &b
+	}
+
+	// 11 Seeded Waitlists
+	sampleWaitlists := []domain.Waitlist{
+		{ID: "wt-001", StationID: "stn-001", UserID: "usr-002", RequestedStart: now.Add(1 * time.Hour), RequestedEnd: now.Add(2 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-002", StationID: "stn-001", UserID: "usr-003", RequestedStart: now.Add(1 * time.Hour), RequestedEnd: now.Add(2 * time.Hour), QueueNumber: 2, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-003", StationID: "stn-002", UserID: "usr-004", RequestedStart: now.Add(2 * time.Hour), RequestedEnd: now.Add(3 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-004", StationID: "stn-003", UserID: "usr-005", RequestedStart: now.Add(1 * time.Hour), RequestedEnd: now.Add(2 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-005", StationID: "stn-003", UserID: "usr-006", RequestedStart: now.Add(1 * time.Hour), RequestedEnd: now.Add(2 * time.Hour), QueueNumber: 2, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-006", StationID: "stn-004", UserID: "usr-007", RequestedStart: now.Add(3 * time.Hour), RequestedEnd: now.Add(4 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-007", StationID: "stn-005", UserID: "usr-008", RequestedStart: now.Add(2 * time.Hour), RequestedEnd: now.Add(3 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-008", StationID: "stn-006", UserID: "usr-009", RequestedStart: now.Add(4 * time.Hour), RequestedEnd: now.Add(5 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-009", StationID: "stn-007", UserID: "usr-010", RequestedStart: now.Add(1 * time.Hour), RequestedEnd: now.Add(2 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-010", StationID: "stn-008", UserID: "usr-011", RequestedStart: now.Add(5 * time.Hour), RequestedEnd: now.Add(6 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+		{ID: "wt-011", StationID: "stn-010", UserID: "usr-001", RequestedStart: now.Add(2 * time.Hour), RequestedEnd: now.Add(3 * time.Hour), QueueNumber: 1, Status: "WAITING", CreatedAt: now, UpdatedAt: now},
+	}
+
+	for i := range sampleWaitlists {
+		w := sampleWaitlists[i]
+		r.waitlist[w.ID] = &w
 	}
 }
 
@@ -165,7 +214,6 @@ func (r *bookingRepository) CheckSlotAvailability(ctx context.Context, slotID st
 	defer r.mu.RUnlock()
 	for _, b := range r.bookings {
 		if b.SlotID == slotID && (b.Status == "REQUESTED" || b.Status == "CONFIRMED" || b.Status == "IN_SESSION") {
-			// Check time overlap
 			if start.Before(b.EndTime) && end.After(b.StartTime) {
 				return false, nil
 			}

@@ -1,6 +1,0 @@
-id,name,location,latitude,longitude,total_power_kw,status,created_at,updated_at
-stn-001,SPKLU PLN Unit Grand Indonesia,"Jl. M.H. Thamrin No.1, Menteng, Jakarta Pusat 10310",-6.19510000,106.82000000,200.00,ACTIVE,2026-06-01 07:00:00+07,2026-06-01 07:00:00+07
-stn-002,SPKLU PLN Rest Area KM 19+400 A,"Tol Jakarta-Cikampek KM 19+400 Arah Cikampek, Bekasi Barat, Jawa Barat",-6.26180000,107.01850000,300.00,ACTIVE,2026-06-01 07:00:00+07,2026-06-01 07:00:00+07
-stn-003,SPKLU PLN Mall Taman Anggrek,"Jl. Letjen S. Parman Kav 21, Tanjung Duren Utara, Jakarta Barat 11470",-6.17840000,106.79030000,120.00,ACTIVE,2026-06-05 08:00:00+07,2026-06-05 08:00:00+07
-stn-004,SPKLU PLN Summarecon Mall Serpong,"Jl. Boulevard Gading Serpong, Pakulonan, Serpong Utara, Tangerang 15810",-6.23900000,106.63000000,100.00,ACTIVE,2026-06-10 09:00:00+07,2026-06-10 09:00:00+07
-stn-005,SPKLU PLN Bandara Soekarno-Hatta T3,"Jl. Raya Bandara Soekarno-Hatta, Selapajang, Neglasari, Tangerang 15126",-6.12750000,106.65370000,200.00,ACTIVE,2026-06-15 09:00:00+07,2026-06-15 09:00:00+07

@@ -20,10 +20,48 @@ type sessionRepository struct {
 }
 
 func NewSessionRepository(db *sql.DB) domain.SessionRepository {
-	return &sessionRepository{
+	repo := &sessionRepository{
 		db:       db,
 		sessions: make(map[string]*domain.ChargingSession),
 		readings: make(map[string][]domain.MeterReading),
+	}
+	repo.seedInitialData()
+	return repo
+}
+
+func (r *sessionRepository) seedInitialData() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+
+	// 11 Seeded Charging Sessions
+	ended1 := now.Add(-1 * time.Hour)
+	ended5 := now.Add(-3 * time.Hour)
+
+	sampleSessions := []domain.ChargingSession{
+		{ID: "ses-001", BookingID: "bkg-001", SlotID: "slot-001", UserID: "usr-001", StartedAt: now.Add(-2 * time.Hour), EndedAt: &ended1, ConsumedKwh: 25.5, Status: "COMPLETED", CreatedAt: now.Add(-2 * time.Hour), UpdatedAt: ended1},
+		{ID: "ses-002", BookingID: "bkg-002", SlotID: "slot-003", UserID: "usr-002", StartedAt: now.Add(-1 * time.Hour), EndedAt: nil, ConsumedKwh: 18.2, Status: "IN_PROGRESS", CreatedAt: now.Add(-1 * time.Hour), UpdatedAt: now},
+		{ID: "ses-003", BookingID: "bkg-005", SlotID: "slot-007", UserID: "usr-005", StartedAt: now.Add(-4 * time.Hour), EndedAt: &ended5, ConsumedKwh: 42.0, Status: "COMPLETED", CreatedAt: now.Add(-4 * time.Hour), UpdatedAt: ended5},
+		{ID: "ses-004", BookingID: "bkg-003", SlotID: "slot-004", UserID: "usr-003", StartedAt: now.Add(-5 * time.Hour), EndedAt: &ended1, ConsumedKwh: 55.0, Status: "COMPLETED", CreatedAt: now.Add(-5 * time.Hour), UpdatedAt: ended1},
+		{ID: "ses-005", BookingID: "bkg-004", SlotID: "slot-006", UserID: "usr-004", StartedAt: now.Add(-6 * time.Hour), EndedAt: &ended5, ConsumedKwh: 30.1, Status: "COMPLETED", CreatedAt: now.Add(-6 * time.Hour), UpdatedAt: ended5},
+		{ID: "ses-006", BookingID: "bkg-006", SlotID: "slot-008", UserID: "usr-006", StartedAt: now.Add(-7 * time.Hour), EndedAt: &ended1, ConsumedKwh: 22.8, Status: "COMPLETED", CreatedAt: now.Add(-7 * time.Hour), UpdatedAt: ended1},
+		{ID: "ses-007", BookingID: "bkg-007", SlotID: "slot-009", UserID: "usr-007", StartedAt: now.Add(-8 * time.Hour), EndedAt: &ended5, ConsumedKwh: 15.4, Status: "COMPLETED", CreatedAt: now.Add(-8 * time.Hour), UpdatedAt: ended5},
+		{ID: "ses-008", BookingID: "bkg-008", SlotID: "slot-010", UserID: "usr-008", StartedAt: now.Add(-9 * time.Hour), EndedAt: &ended1, ConsumedKwh: 60.0, Status: "COMPLETED", CreatedAt: now.Add(-9 * time.Hour), UpdatedAt: ended1},
+		{ID: "ses-009", BookingID: "bkg-009", SlotID: "slot-011", UserID: "usr-009", StartedAt: now.Add(-10 * time.Hour), EndedAt: &ended5, ConsumedKwh: 38.9, Status: "COMPLETED", CreatedAt: now.Add(-10 * time.Hour), UpdatedAt: ended5},
+		{ID: "ses-010", BookingID: "bkg-010", SlotID: "slot-002", UserID: "usr-010", StartedAt: now.Add(-11 * time.Hour), EndedAt: &ended1, ConsumedKwh: 19.5, Status: "COMPLETED", CreatedAt: now.Add(-11 * time.Hour), UpdatedAt: ended1},
+		{ID: "ses-011", BookingID: "bkg-011", SlotID: "slot-005", UserID: "usr-011", StartedAt: now.Add(-12 * time.Hour), EndedAt: &ended5, ConsumedKwh: 48.0, Status: "COMPLETED", CreatedAt: now.Add(-12 * time.Hour), UpdatedAt: ended5},
+	}
+
+	for i := range sampleSessions {
+		s := sampleSessions[i]
+		r.sessions[s.ID] = &s
+
+		// Seed initial meter readings for each session
+		r.readings[s.ID] = []domain.MeterReading{
+			{ID: int64(i*10 + 1), SessionID: s.ID, RecordedAt: s.StartedAt, CurrentKwh: s.ConsumedKwh / 2, PowerKw: 50.0, Voltage: 400.0, CurrentAmpere: 125.0},
+			{ID: int64(i*10 + 2), SessionID: s.ID, RecordedAt: s.StartedAt.Add(30 * time.Minute), CurrentKwh: s.ConsumedKwh, PowerKw: 50.0, Voltage: 400.0, CurrentAmpere: 125.0},
+		}
 	}
 }
 
