@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #1c69d4;
+    --primary-active: #0653b6;
+    --primary-disabled: #d6d6d6;
+    --ink: #262626;
+    --body: #3c3c3c;
+    --body-strong: #1a1a1a;
+    --muted: #6b6b6b;
+    --muted-soft: #9a9a9a;
+    --hairline: #e6e6e6;
+    --hairline-strong: #cccccc;
+    --canvas: #ffffff;
+    --surface-soft: #f7f7f7;
+    --surface-card: #fafafa;
+    --surface-strong: #ebebeb;
+    --surface-dark: #1a2129;
+    --surface-dark-elevated: #262e38;
+    --on-primary: #ffffff;
+    --on-dark: #ffffff;
+    --on-dark-soft: #bbbbbb;
+    --m-blue-light: #0066b1;
+    --m-blue-dark: #1c69d4;
+    --m-red: #e22718;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #dc2626;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    border-radius: 0 !important; /* Strict 0px rectangular corners as per DESIGN.md */
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--body);
+    font-weight: 300; /* BMW Light 300 body copy voice */
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Custom BMW Utility Classes */
+.bmw-hero-dark {
+  background-color: #1a2129;
+  color: #ffffff;
+}
+
+.bmw-card {
+  background-color: #ffffff;
+  border: 1px solid #e6e6e6;
+}
+
+.bmw-card-soft {
+  background-color: #fafafa;
+  border: 1px solid #e6e6e6;
+}
+
+.bmw-btn-primary {
+  background-color: #1c69d4;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  height: 48px;
+  padding: 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.bmw-btn-primary:hover {
+  background-color: #0653b6;
+}
+
+.bmw-btn-secondary {
+  background-color: #ffffff;
+  color: #262626;
+  border: 1px solid #cccccc;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  height: 48px;
+  padding: 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.bmw-btn-secondary:hover {
+  background-color: #f7f7f7;
+  border-color: #262626;
+}
+
+.bmw-btn-dark-secondary {
+  background-color: transparent;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  height: 48px;
+  padding: 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.bmw-btn-dark-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.bmw-link-uppercase {
+  color: #1c69d4;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+  cursor: pointer;
+}
+
+.bmw-link-uppercase:hover {
+  color: #0653b6;
+}
+
+/* Tricolor M Accent Bar */
+.m-stripe-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #0066b1 0%, #0066b1 33.3%, #1c69d4 33.3%, #1c69d4 66.6%, #e22718 66.6%, #e22718 100%);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f7f7f7;
+}
+::-webkit-scrollbar-thumb {
+  background: #cccccc;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #1c69d4;
+}
