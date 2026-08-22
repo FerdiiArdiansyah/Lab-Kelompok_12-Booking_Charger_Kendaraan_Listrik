@@ -82,11 +82,11 @@ Pengujian konkurensi dijalankan menggunakan skrip `tests/rebutan.test.js` dengan
 * **Validasi Asumsi:** Pengujian beban membuktikan bahwa bottleneck utama berada pada penguncian baris database (*row locking*), bukan pada kapasitas memori aplikasi Node.js/Go.
 
 ### Kontribusi Peran Squad
-* **Arsitek (Nadilla Getalia):** Merancang arsitektur microservices, menyusun spesifikasi API `openapi.yaml`, serta mengelola keterhubungan skema database.
+* **Arsitek:** Merancang arsitektur microservices, menyusun spesifikasi API `openapi.yaml`, serta mengelola keterhubungan skema database.
 * **Backend Developer:** Mengimplementasikan REST API di Go dan logika penguncian transaksi atomik.
 * **DevOps Engineer:** Menyusun `docker-compose.yml`, mengelola *port forwarding* Codespaces, dan konfigurasi lingkungan pengujian.
 * **Data Engineer:** Merancang ERD, indeks query database, dan optimasi *connection pool*.
-* **QA Engineer (Ferdi Ardiansyah):** Menyusun skrip pengujian (`smoke.test.js` & `rebutan.test.js`), mengeksekusi uji beban `autocannon`, dan mengumpulkan artefak laporan.
+* **QA Engineer:** Menyusun skrip pengujian (`smoke.test.js` & `rebutan.test.js`), mengeksekusi uji beban `autocannon`, dan mengumpulkan artefak laporan.
 
 ---
 
