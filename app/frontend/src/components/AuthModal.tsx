@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Mail, Lock, User, Phone, Info, AlertTriangle } from 'lucide-react';
 import type { User as UserType } from '../types';
 
@@ -27,6 +27,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Automatically reset all form fields every time modal opens or mode changes
+  useEffect(() => {
+    if (isOpen) {
+      setName('');
+      setEmail('');
+      setPassword('');
+      setPhone('');
+      setErrorMessage(null);
+    }
+  }, [isOpen, mode]);
 
   if (!isOpen) return null;
 
@@ -126,7 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Manual Authentication Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4 text-xs">
           {errorMessage && (
             <div className="p-3.5 bg-[#dc2626]/10 border border-[#dc2626]/40 text-[#b91c1c] font-bold text-xs flex items-start gap-2.5 shadow-xs">
               <AlertTriangle className="w-4 h-4 text-[#dc2626] shrink-0 mt-0.5" />
