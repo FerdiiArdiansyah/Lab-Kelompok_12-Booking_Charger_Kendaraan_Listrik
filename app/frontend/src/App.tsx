@@ -45,12 +45,18 @@ export function App() {
   useEffect(() => {
     async function initApp() {
       try {
-        const fetchedStations = await apiService.getStations();
+        const [fetchedStations, fetchedAllBookings] = await Promise.all([
+          apiService.getStations(),
+          apiService.getAllBookings(),
+        ]);
         if (fetchedStations && fetchedStations.length > 0) {
           setStations(fetchedStations);
         }
+        if (fetchedAllBookings && fetchedAllBookings.length > 0) {
+          setBookings(fetchedAllBookings);
+        }
       } catch (err) {
-        console.error('Error fetching public stations:', err);
+        console.error('Error fetching public data:', err);
       }
 
       // Restore session from localStorage if exists
@@ -80,37 +86,84 @@ export function App() {
     initApp();
   }, []);
 
-  // 2. Sync User-Scoped Data when currentUser changes
+  // 2. Sync Public and User-Scoped Data when currentUser changes
   useEffect(() => {
-    async function loadUserData(userId: string) {
+    async function loadAppAndUserData() {
       try {
-        const [userVehicles, userBookings, userSession, userInvoices] = await Promise.all([
-          apiService.getVehicles(userId),
-          apiService.getBookings(userId),
-          apiService.getActiveSession(userId),
-          apiService.getInvoices(userId),
-        ]);
+        const allBookingsBackend = await apiService.getAllBookings();
 
-        setVehicles(userVehicles || []);
-        setBookings(userBookings || []);
-        const validActiveSession = userSession && userSession.id && userSession.status === 'IN_PROGRESS' ? userSession : null;
-        setActiveSession(validActiveSession);
-        setInvoices(userInvoices || []);
+        if (currentUser) {
+          const [userVehicles, userBookings, userSession, userInvoices] = await Promise.all([
+            apiService.getVehicles(currentUser.id),
+            apiService.getBookings(currentUser.id),
+            apiService.getActiveSession(currentUser.id),
+            apiService.getInvoices(currentUser.id),
+          ]);
+
+          setVehicles(userVehicles || []);
+          
+          // Merge user bookings and all backend bookings dynamically
+          const combined = [...(allBookingsBackend || []), ...(userBookings || [])];
+          const uniqueBookingsMap = new Map();
+          combined.forEach(b => uniqueBookingsMap.set(b.id, b));
+          setBookings(Array.from(uniqueBookingsMap.values()));
+
+          const validActiveSession = userSession && userSession.id && userSession.status === 'IN_PROGRESS' ? userSession : null;
+          setActiveSession(validActiveSession);
+          setInvoices(userInvoices || []);
+        } else {
+          // Visitor mode (logged out): Always show public station booking schedule matrix!
+          setBookings(allBookingsBackend || []);
+          setVehicles([]);
+          setActiveSession(null);
+          setInvoices([]);
+        }
       } catch (err) {
-        console.error('Error fetching user data:', err);
+        console.error('Error fetching app data:', err);
       }
     }
 
-    if (currentUser) {
-      loadUserData(currentUser.id);
-    } else {
-      // Clear user state when logged out
+    loadAppAndUserData();
+  }, [currentUser]);
+
+  // 3. Auto-Logout on 20 Seconds of User Inactivity (Auto Hapus Token & Reset Sesi)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const INACTIVITY_LIMIT_MS = 20000; // 20 detik tanpa interaksi
+    let timer: number;
+
+    const performAutoLogout = async () => {
+      localStorage.removeItem('volt_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('volt_user');
+      localStorage.removeItem('user');
+      setCurrentUser(null);
       setVehicles([]);
-      setBookings([]);
+      const publicBookings = await apiService.getAllBookings();
+      setBookings(publicBookings || []);
       setActiveSession(null);
       setInvoices([]);
       setActiveTab('finder');
-    }
+      showToast('⚠️ Sesi & Token telah dihapus otomatis karena tidak ada interaksi pengguna selama 20 detik!');
+    };
+
+    const resetInactivityTimer = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(performAutoLogout, INACTIVITY_LIMIT_MS);
+    };
+
+    // Jalankan timer saat komponen terdeteksi user login
+    resetInactivityTimer();
+
+    // Deteksi seluruh interaksi pengguna (mouse, keyboard, click, scroll, touch)
+    const events = ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart', 'pointerdown'];
+    events.forEach((evt) => window.addEventListener(evt, resetInactivityTimer, { passive: true }));
+
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      events.forEach((evt) => window.removeEventListener(evt, resetInactivityTimer));
+    };
   }, [currentUser]);
 
   // Tab Guard Navigation Helper
@@ -123,12 +176,14 @@ export function App() {
     setActiveTab(tab);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     localStorage.removeItem('volt_token');
     localStorage.removeItem('token');
     localStorage.removeItem('volt_user');
     localStorage.removeItem('user');
+    const publicBookings = await apiService.getAllBookings();
+    setBookings(publicBookings || []);
     showToast('Anda telah keluar (Logout). Session dibersihkan.');
   };
 
@@ -210,6 +265,9 @@ export function App() {
 
     const newSession = await apiService.startSession(createdBooking.id, createdBooking.slotId, currentUser.id);
 
+    // Dynamic Backend Lock to IN_USE (station-service)
+    await apiService.updateSlotStatus(selectedStationForBooking.station.id, data.slotId, 'IN_USE');
+
     setStations((prev) =>
       prev.map((st) => ({
         ...st,
@@ -222,7 +280,7 @@ export function App() {
     setSelectedStationForBooking(null);
     setActiveSession(newSession);
     setActiveTab('session');
-    showToast(`⚡ Sesi pengisian daya langsung dimulai! Slot terkunci IN_USE & Live Telemetry aktif.`);
+    showToast(`⚡ Sesi pengisian daya langsung dimulai! Slot #${data.slotId} terkunci IN_USE & Telemetry aktif.`);
   };
 
   // 2. Join Waitlist handler
@@ -239,6 +297,13 @@ export function App() {
     setBookings((prev) =>
       prev.map((b) => (b.id === booking.id ? { ...b, status: 'IN_PROGRESS' } : b))
     );
+
+    // Dynamic Backend Lock to IN_USE (station-service)
+    const targetStation = stations.find((st) => st.slots && st.slots.some((sl) => sl.id === booking.slotId));
+    if (targetStation) {
+      await apiService.updateSlotStatus(targetStation.id, booking.slotId, 'IN_USE');
+    }
+
     // Immediately lock slot status to IN_USE upon check-in
     setStations((prev) =>
       prev.map((st) => ({
@@ -263,23 +328,45 @@ export function App() {
     if (finalKwh < 0.5) {
       serviceFee = isUltraFast ? 5000 : 2500;
     } else {
-      serviceFee = isUltraFast ? 57000 : 25000;
+      serviceFee = isUltraFast ? 20000 : 10000;
     }
 
-    const roundedKwh = Number(finalKwh.toFixed(2));
+    const activeSlotId = activeSession?.slotId;
+    const activeBookingId = activeSession?.bookingId;
+    
+    // 1. Dynamic Backend Finish Session (session-service)
+    await apiService.finishSession(sessionId, finalKwh);
+
+    // 2. Dynamic Backend Complete Booking (booking-service)
+    if (activeBookingId) {
+      await apiService.completeBooking(activeBookingId);
+    }
+
+    // 3. Dynamic Backend Unlock Slot to AVAILABLE (station-service)
+    if (station && activeSlotId) {
+      await apiService.updateSlotStatus(station.id, activeSlotId, 'AVAILABLE');
+    }
+
+    // 4. Update local booking state to COMPLETED
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === activeBookingId || (activeSlotId && b.slotId === activeSlotId && (b.status === 'IN_PROGRESS' || b.status === 'CONFIRMED'))
+          ? { ...b, status: 'COMPLETED' }
+          : b
+      )
+    );
+
     const createdInvoice = await apiService.createInvoice({
       sessionId,
       userId: currentUser?.id || 'usr-driver',
       tariffId: station?.activeTariff?.id || 'trf-001',
-      consumedKwh: roundedKwh,
+      consumedKwh: finalKwh,
       pricePerKwh,
       serviceFee,
     });
 
-    setInvoices((prev) => [createdInvoice, ...prev.filter((i) => i.id !== createdInvoice.id)]);
+    setInvoices((prev) => [createdInvoice, ...prev]);
 
-    // Free the slot back to AVAILABLE once session finishes
-    const activeSlotId = activeSession?.slotId;
     if (activeSlotId) {
       setStations((prev) =>
         prev.map((st) => ({
@@ -291,9 +378,14 @@ export function App() {
       );
     }
 
+    // Refresh all bookings from backend to immediately update 24-hour matrix on dashboard
+    apiService.getAllBookings().then((updatedList) => {
+      if (updatedList) setBookings(updatedList);
+    });
+
     setActiveSession(null);
     setActiveTab('billing');
-    showToast(`Charging selesai! Slot SPKLU kembali AVAILABLE & Invoice #${createdInvoice.id} terbit.`);
+    showToast(`Charging selesai! Sesi #${sessionId} tercatat & Invoice #${createdInvoice.id} terbit.`);
   };
 
   // 5. Confirm Payment
@@ -311,9 +403,13 @@ export function App() {
   // 6. Garage Operations
   const handleAddVehicle = async (vehicleData: Omit<UserVehicle, 'id' | 'createdAt'>) => {
     if (!currentUser) return;
-    const newVehicle = await apiService.addVehicle({ ...vehicleData, userId: currentUser.id });
-    setVehicles((prev) => [newVehicle, ...prev]);
-    showToast(`Mobil EV ${newVehicle.brand} ${newVehicle.model} ditambahkan!`);
+    try {
+      const newVehicle = await apiService.addVehicle({ ...vehicleData, userId: currentUser.id });
+      setVehicles((prev) => [newVehicle, ...prev]);
+      showToast(`Mobil EV ${newVehicle.brand} ${newVehicle.model} (${newVehicle.licensePlate}) ditambahkan!`);
+    } catch (err: any) {
+      showToast(`⚠️ ${err.message || 'Gagal menambahkan kendaraan.'}`);
+    }
   };
 
   const handleDeleteVehicle = async (id: string) => {
@@ -375,16 +471,17 @@ export function App() {
 
       {/* Toast Alert Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#1c69d4] text-[#ffffff] font-extrabold px-6 py-3.5 shadow-2xl text-xs uppercase tracking-wider flex items-center gap-2">
+        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 z-50 bg-[#1c69d4] text-[#ffffff] font-extrabold px-5 py-3 shadow-2xl text-xs uppercase tracking-wider flex items-center justify-center md:justify-start gap-2 border border-white/20">
           <span>⚡ {toastMessage}</span>
         </div>
       )}
 
       {/* Main Container */}
-      <main className="max-w-[1440px] mx-auto px-4 lg:px-8 py-8">
+      <main className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8 pb-24 md:pb-8">
         {activeTab === 'finder' && (
           <StationExplorer
             stations={stations}
+            allBookings={bookings}
             onSelectStationForBooking={(st, slot) => {
               if (!currentUser) {
                 setIsAuthModalOpen(true);
@@ -406,7 +503,7 @@ export function App() {
 
         {activeTab === 'bookings' && (
           <UserBookingsList
-            bookings={bookings}
+            bookings={bookings.filter((b) => b.userId === currentUser?.id)}
             stations={stations}
             vehicles={vehicles}
             onStartSessionFromBooking={handleStartSessionFromBooking}
@@ -441,6 +538,7 @@ export function App() {
             invoices={invoices}
             activeSession={activeSession}
             currentUser={currentUser}
+            vehicles={vehicles}
           />
         )}
 

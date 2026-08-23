@@ -41,6 +41,53 @@ async function fetchWithFallback<T>(url: string, options?: RequestInit, fallback
   }
 }
 
+// Helper to transform snake_case backend booking object to frontend Booking model
+function mapRawBookingToFrontend(b: any): Booking {
+  if (!b) return null as any;
+  return {
+    id: b.id || `bkg-${Math.floor(Math.random() * 900) + 100}`,
+    userId: b.user_id || b.userId || 'usr-driver',
+    stationId: b.station_id || b.stationId || 'stn-001',
+    slotId: b.slot_id || b.slotId || 'slot-001',
+    vehicleId: b.vehicle_id || b.vehicleId || 'veh-001',
+    startTime: b.start_time || b.startTime || new Date().toISOString(),
+    endTime: b.end_time || b.endTime || new Date(Date.now() + 3600000).toISOString(),
+    status: b.status || 'CONFIRMED',
+    createdAt: b.created_at || b.createdAt || new Date().toISOString(),
+  };
+}
+
+// Helper to transform snake_case backend vehicle object to frontend UserVehicle model
+function mapRawVehicleToFrontend(v: any): UserVehicle {
+  if (!v) return null as any;
+  return {
+    id: v.id || `vhc-${Math.floor(Math.random() * 900) + 100}`,
+    userId: v.user_id || v.userId || 'usr-driver',
+    brand: v.brand || 'EV',
+    model: v.model || 'Electric Vehicle',
+    licensePlate: v.license_plate || v.licensePlate || 'B 1234 EV',
+    connectorType: v.connector_type || v.connectorType || 'CCS2',
+    batteryCapacityKwh: parseFloat(v.battery_capacity_kwh || v.batteryCapacityKwh || 50),
+    createdAt: v.created_at || v.createdAt || new Date().toISOString(),
+  };
+}
+
+// Helper to transform snake_case backend charging session object to frontend ChargingSession model
+function mapRawSessionToFrontend(s: any): ChargingSession {
+  if (!s) return null as any;
+  return {
+    id: s.id || `ses-${Math.floor(Math.random() * 900) + 100}`,
+    bookingId: s.booking_id || s.bookingId || 'bkg-001',
+    slotId: s.slot_id || s.slotId || 'slot-001',
+    userId: s.user_id || s.userId || 'usr-driver',
+    startedAt: s.started_at || s.startedAt || new Date().toISOString(),
+    endedAt: s.ended_at || s.endedAt || null,
+    consumedKwh: parseFloat(s.consumed_kwh || s.consumedKwh || 0.1),
+    status: s.status || 'IN_PROGRESS',
+    readings: s.readings || [],
+  };
+}
+
 export const apiService = {
   // === REAL USER SERVICE (Port 8086) AUTH ===
   async registerUser(data: { name: string; email: string; password: string; phone: string; role: string }): Promise<User> {
@@ -98,40 +145,64 @@ export const apiService = {
   },
 
   // === VEHICLES (Port 8086) ===
+
+  // === VEHICLES (Port 8086) ===
   async getVehicles(userId?: string): Promise<UserVehicle[]> {
     if (!userId) return [];
     const token = localStorage.getItem('volt_token');
-    return fetchWithFallback<UserVehicle[]>(
-      `${SERVICES.USER}/users/me/vehicles?user_id=${userId}`,
-      {
-        method: 'GET',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-      []
-    );
+    try {
+      const res = await fetchWithFallback<any>(
+        `${SERVICES.USER}/users/me/vehicles?user_id=${userId}`,
+        {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+        []
+      );
+      const list = Array.isArray(res) ? res : (res && res.data && Array.isArray(res.data)) ? res.data : [];
+      return list.map(mapRawVehicleToFrontend).filter(Boolean);
+    } catch {
+      return [];
+    }
   },
 
   async addVehicle(vehicle: Omit<UserVehicle, 'id' | 'createdAt'>): Promise<UserVehicle> {
     const token = localStorage.getItem('volt_token');
-    const newId = `vhc-00${Math.floor(Math.random() * 900) + 100}`;
-    const newVehicle: UserVehicle = {
+    const payload = {
+      brand: vehicle.brand,
+      model: vehicle.model,
+      license_plate: vehicle.licensePlate,
+      connector_type: vehicle.connectorType,
+      battery_capacity_kwh: vehicle.batteryCapacityKwh,
+    };
+
+    const fallbackVehicle: UserVehicle = {
       ...vehicle,
-      id: newId,
+      id: `vhc-${Math.floor(Math.random() * 900) + 100}`,
       createdAt: new Date().toISOString(),
     };
 
-    return fetchWithFallback<UserVehicle>(
-      `${SERVICES.USER}/users/me/vehicles?user_id=${vehicle.userId}`,
-      {
+    try {
+      const response = await fetch(`${SERVICES.USER}/users/me/vehicles?user_id=${vehicle.userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(vehicle),
-      },
-      newVehicle
-    );
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        return fallbackVehicle;
+      }
+
+      const resData = await response.json();
+      const raw = resData.data || resData;
+      return mapRawVehicleToFrontend(raw) || fallbackVehicle;
+    } catch (err) {
+      console.warn('Add vehicle error fallback:', err);
+      return fallbackVehicle;
+    }
   },
 
   async deleteVehicle(vehicleId: string, userId?: string): Promise<boolean> {
@@ -334,11 +405,31 @@ export const apiService = {
   // === BOOKING SERVICE (Port 8083) ===
   async getBookings(userId?: string): Promise<Booking[]> {
     if (!userId) return [];
-    return fetchWithFallback<Booking[]>(
-      `${SERVICES.BOOKING}/bookings/user/${userId}`,
-      { method: 'GET' },
-      []
-    );
+    try {
+      const res = await fetchWithFallback<any>(
+        `${SERVICES.BOOKING}/bookings/user/${userId}`,
+        { method: 'GET' },
+        []
+      );
+      const list = Array.isArray(res) ? res : (res && res.data && Array.isArray(res.data)) ? res.data : [];
+      return list.map(mapRawBookingToFrontend).filter(Boolean);
+    } catch {
+      return [];
+    }
+  },
+
+  async getAllBookings(): Promise<Booking[]> {
+    try {
+      const res = await fetchWithFallback<any>(
+        `${SERVICES.BOOKING}/bookings`,
+        { method: 'GET' },
+        []
+      );
+      const list = Array.isArray(res) ? res : (res && res.data && Array.isArray(res.data)) ? res.data : [];
+      return list.map(mapRawBookingToFrontend).filter(Boolean);
+    } catch {
+      return [];
+    }
   },
 
   async createBooking(bookingData: {
@@ -349,48 +440,96 @@ export const apiService = {
     endTime: string;
     userId?: string;
   }): Promise<Booking> {
-    const newBooking: Booking = {
-      id: `bkg-00${Math.floor(Math.random() * 900) + 100}`,
+    const payload = {
+      user_id: bookingData.userId || 'usr-driver',
+      station_id: bookingData.stationId,
+      slot_id: bookingData.slotId,
+      vehicle_id: bookingData.vehicleId,
+      start_time: bookingData.startTime,
+      end_time: bookingData.endTime,
+      idempotency_key: `idem-${Date.now()}`,
+    };
+
+    const fallbackBooking: Booking = {
+      id: `bkg-${Math.floor(Math.random() * 900) + 100}`,
       userId: bookingData.userId || 'usr-driver',
       ...bookingData,
       status: 'CONFIRMED',
       createdAt: new Date().toISOString(),
     };
 
-    return fetchWithFallback<Booking>(
-      `${SERVICES.BOOKING}/bookings`,
-      {
+    try {
+      const response = await fetch(`${SERVICES.BOOKING}/bookings`, {
         method: 'POST',
-        body: JSON.stringify(bookingData),
-      },
-      newBooking
-    );
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        console.warn('Backend booking error:', errJson);
+        return fallbackBooking;
+      }
+
+      const resData = await response.json();
+      const raw = resData.data || resData;
+      return mapRawBookingToFrontend(raw) || fallbackBooking;
+    } catch (err) {
+      console.warn('Backend booking network error, using fallback:', err);
+      return fallbackBooking;
+    }
   },
 
   // === SESSION SERVICE (Port 8084) ===
   async getActiveSession(userId?: string): Promise<ChargingSession | null> {
     if (!userId) return null;
-    const res = await fetchWithFallback<any>(
-      `${SERVICES.SESSION}/sessions/user/${userId}`,
-      { method: 'GET' },
-      null
-    );
-
-    if (Array.isArray(res)) {
-      const active = res.find((s: any) => s.status === 'IN_PROGRESS');
-      return active || null;
+    try {
+      const res = await fetchWithFallback<any>(
+        `${SERVICES.SESSION}/sessions/user/${userId}`,
+        { method: 'GET' },
+        null
+      );
+      const list = Array.isArray(res) ? res : (res && res.data && Array.isArray(res.data)) ? res.data : [];
+      const active = list.find((s: any) => s.status === 'IN_PROGRESS');
+      return active ? mapRawSessionToFrontend(active) : null;
+    } catch {
+      return null;
     }
+  },
 
-    if (res && typeof res === 'object' && res.id && res.status === 'IN_PROGRESS') {
-      return res as ChargingSession;
+  async checkInBooking(bookingId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${SERVICES.BOOKING}/bookings/${bookingId}/check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.ok;
+    } catch {
+      return false;
     }
+  },
 
-    return null;
+  async completeBooking(bookingId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${SERVICES.BOOKING}/bookings/${bookingId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
   },
 
   async startSession(bookingId: string, slotId: string, userId?: string): Promise<ChargingSession> {
-    const newSession: ChargingSession = {
-      id: `ses-00${Math.floor(Math.random() * 900) + 100}`,
+    const payload = {
+      booking_id: bookingId,
+      slot_id: slotId,
+      user_id: userId || 'usr-driver',
+    };
+
+    const fallbackSession: ChargingSession = {
+      id: `ses-${Math.floor(Math.random() * 900) + 100}`,
       bookingId,
       slotId,
       userId: userId || 'usr-driver',
@@ -400,14 +539,40 @@ export const apiService = {
       readings: [],
     };
 
-    return fetchWithFallback<ChargingSession>(
-      `${SERVICES.SESSION}/sessions/start`,
-      {
+    try {
+      // 1. Trigger booking check-in
+      await fetch(`${SERVICES.BOOKING}/bookings/${bookingId}/check-in`, { method: 'POST' }).catch(() => {});
+
+      // 2. Start session in session-service
+      const response = await fetch(`${SERVICES.SESSION}/sessions/start`, {
         method: 'POST',
-        body: JSON.stringify({ bookingId, slotId, userId }),
-      },
-      newSession
-    );
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) return fallbackSession;
+      const resData = await response.json();
+      const raw = resData.data || resData;
+      return mapRawSessionToFrontend(raw) || fallbackSession;
+    } catch (err) {
+      console.warn('Backend start session network error, using fallback:', err);
+      return fallbackSession;
+    }
+  },
+
+  async finishSession(sessionId: string, finalKwh: number): Promise<ChargingSession | null> {
+    try {
+      const response = await fetch(`${SERVICES.SESSION}/sessions/${sessionId}/finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ final_kwh: finalKwh }),
+      });
+      if (!response.ok) return null;
+      const resData = await response.json();
+      return mapRawSessionToFrontend(resData.data || resData);
+    } catch {
+      return null;
+    }
   },
 
   // === BILLING SERVICE (Port 8085) ===

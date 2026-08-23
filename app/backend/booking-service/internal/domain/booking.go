@@ -56,6 +56,7 @@ type BookingUsecase interface {
 	GetAllBookings(ctx context.Context) ([]Booking, error)
 	CheckIn(ctx context.Context, bookingID string) error
 	CancelBooking(ctx context.Context, bookingID string) error
+	CompleteBooking(ctx context.Context, bookingID string) error
 	GetAvailability(ctx context.Context, stationID string, start, end time.Time) ([]SlotAvailability, error)
 	GetWaitlist(ctx context.Context, stationID string) ([]Waitlist, error)
 	TriggerAutoRelease(ctx context.Context, graceMinutes int) (int, error)

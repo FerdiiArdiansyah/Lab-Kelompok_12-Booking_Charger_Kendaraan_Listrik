@@ -153,11 +153,29 @@
   color: #0653b6;
 }
 
-/* Tricolor M Accent Bar */
+/* Tricolor M Accent Bar with Infinite Continuous Animation */
 .m-stripe-bar {
   height: 4px;
   width: 100%;
-  background: linear-gradient(90deg, #0066b1 0%, #0066b1 33.3%, #1c69d4 33.3%, #1c69d4 66.6%, #e22718 66.6%, #e22718 100%);
+  background: linear-gradient(
+    90deg,
+    #0066b1 0%,
+    #1c69d4 25%,
+    #e22718 50%,
+    #0066b1 75%,
+    #1c69d4 100%
+  );
+  background-size: 200% 100%;
+  animation: stripeContinuous 2.5s linear infinite;
+}
+
+@keyframes stripeContinuous {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: -200% 0%;
+  }
 }
 
 /* Custom Scrollbar */

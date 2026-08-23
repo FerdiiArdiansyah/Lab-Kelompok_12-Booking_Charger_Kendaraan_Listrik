@@ -58,6 +58,7 @@ func main() {
 	// Operational Routes
 	e.POST("/bookings/:id/check-in", handler.CheckIn)
 	e.POST("/bookings/:id/cancel", handler.CancelBooking)
+	e.POST("/bookings/:id/complete", handler.CompleteBooking)
 	e.POST("/bookings/auto-release", handler.AutoRelease)
 
 	log.Printf("booking-service starting on port :%s...", cfg.ServerPort)

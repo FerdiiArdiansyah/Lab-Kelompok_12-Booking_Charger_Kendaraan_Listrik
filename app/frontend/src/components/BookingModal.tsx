@@ -27,12 +27,6 @@ interface BookingModalProps {
   }) => void;
 }
 
-const defaultVehiclesList: UserVehicle[] = [
-  { id: 'vhc-001', userId: 'usr-driver', brand: 'BMW', model: 'iX xDrive50', licensePlate: 'B 8888 EV', connectorType: 'CCS2', batteryCapacityKwh: 105.2, createdAt: new Date().toISOString() },
-  { id: 'vhc-002', userId: 'usr-driver', brand: 'Hyundai', model: 'Ioniq 5 Long Range', licensePlate: 'B 5678 EV', connectorType: 'CCS2', batteryCapacityKwh: 72.6, createdAt: new Date().toISOString() },
-  { id: 'vhc-003', userId: 'usr-driver', brand: 'Wuling', model: 'Air EV Long Range', licensePlate: 'B 1234 EV', connectorType: 'Type 2', batteryCapacityKwh: 26.7, createdAt: new Date().toISOString() },
-];
-
 export const BookingModal: React.FC<BookingModalProps> = ({
   station,
   initialSlot,
@@ -43,7 +37,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onConfirmAndStartSession,
   onJoinWaitlist,
 }) => {
-  const availableVehicles = vehicles && vehicles.length > 0 ? vehicles : defaultVehiclesList;
+  const availableVehicles = vehicles || [];
 
   const [selectedSlotId, setSelectedSlotId] = useState<string>(
     initialSlot ? initialSlot.id : station.slots[0]?.id || ''
@@ -51,9 +45,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
     availableVehicles[0]?.id || ''
   );
-  const [bookingDate, setBookingDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const getLocalDateStr = (d: Date = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [bookingDate, setBookingDate] = useState<string>(getLocalDateStr());
   const [startHour, setStartHour] = useState<number>(new Date().getHours() + 1);
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
 
@@ -171,17 +170,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <label className="text-xs font-bold text-[#262626] uppercase tracking-wider flex items-center gap-1.5">
                 <Car className="w-4 h-4 text-[#1c69d4]" /> Pilih Kendaraan EV:
               </label>
-              <select
-                value={selectedVehicleId}
-                onChange={(e) => setSelectedVehicleId(e.target.value)}
-                className="w-full h-12 px-3 bg-white border border-[#cccccc] text-xs font-bold text-[#262626] focus:border-[#1c69d4] focus:outline-none"
-              >
-                {availableVehicles.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.brand} {v.model} ({v.connectorType}) - {v.licensePlate}
-                  </option>
-                ))}
-              </select>
+              {availableVehicles.length > 0 ? (
+                <select
+                  value={selectedVehicleId}
+                  onChange={(e) => setSelectedVehicleId(e.target.value)}
+                  className="w-full h-12 px-3 bg-white border border-[#cccccc] text-xs font-bold text-[#262626] focus:border-[#1c69d4] focus:outline-none"
+                >
+                  {availableVehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.brand} {v.model} ({v.connectorType}) - Plat: {v.licensePlate}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Garasi EV Anda masih kosong. Silakan mendaftarkan mobil EV Anda di menu Garasi EV terlebih dahulu.</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -197,64 +203,136 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           )}
         </div>
 
-        {/* Step 2: Date & Time */}
+        {/* Step 2: 24-Hour Interactive Schedule & Time Selection */}
         <div className="space-y-3 bg-[#fafafa] p-4 border border-[#e6e6e6]">
-          <div className="text-xs font-bold text-[#262626] uppercase tracking-wider flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#1c69d4]" /> Waktu & Durasi Cas:
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-[#262626] uppercase tracking-wider flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#1c69d4]" /> Jadwal 24-Jam (Bebas Bentrok / Anti-Overlap):
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase">
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-[#22c55e] inline-block border border-emerald-600" /> Tersedia</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-[#1c69d4] inline-block" /> Pilihan Anda</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-[#dc2626] inline-block" /> Terisi</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {/* 24-Hour Visual Schedule Timeline Matrix */}
+          <div className="space-y-1 pt-1">
+            <div className="text-[10px] text-[#6b6b6b] font-bold flex justify-between">
+              <span>00:00</span>
+              <span>06:00</span>
+              <span>12:00</span>
+              <span>18:00</span>
+              <span>23:59</span>
+            </div>
+            <div className="grid grid-cols-12 sm:grid-cols-24 gap-1">
+              {Array.from({ length: 24 }).map((_, hour) => {
+                const hourSlotStart = new Date(`${bookingDate}T${String(hour).padStart(2, '0')}:00:00`).getTime();
+                const hourSlotEnd = hourSlotStart + 3600000;
+
+                const isHourOccupied = existingBookings.some((b) => {
+                  if (b.slotId !== selectedSlotId || b.status === 'CANCELLED' || b.status === 'EXPIRED') return false;
+                  const bStart = new Date(b.startTime).getTime();
+                  const bEnd = new Date(b.endTime).getTime();
+                  return hourSlotStart < bEnd && hourSlotEnd > bStart;
+                });
+
+                const reqStart = startTimeObj.getTime();
+                const reqEnd = endTimeObj.getTime();
+                const isSelectedRange = hourSlotStart < reqEnd && hourSlotEnd > reqStart;
+
+                let btnStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100';
+                if (isHourOccupied) {
+                  btnStyle = 'bg-red-500 text-white border-red-600 cursor-not-allowed opacity-90';
+                } else if (isSelectedRange) {
+                  btnStyle = 'bg-[#1c69d4] text-white border-[#1c69d4] font-bold shadow-xs';
+                }
+
+                return (
+                  <button
+                    key={hour}
+                    type="button"
+                    title={`Jam ${String(hour).padStart(2, '0')}:00 WIB ${isHourOccupied ? '(TERISI)' : '(TERSEDIA)'}`}
+                    onClick={() => {
+                      if (!isHourOccupied) {
+                        setStartHour(hour);
+                      }
+                    }}
+                    className={`h-9 border text-[10px] flex items-center justify-center transition-all ${btnStyle}`}
+                  >
+                    {String(hour).padStart(2, '0')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Time Picker Controls */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <div>
-              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Tanggal</label>
+              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Tanggal Reservasi</label>
               <input
                 type="date"
                 value={bookingDate}
                 onChange={(e) => setBookingDate(e.target.value)}
-                className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs text-[#262626]"
+                className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs font-bold text-[#262626]"
               />
             </div>
             <div>
-              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Jam Mulai</label>
-              <select
-                value={startHour}
-                onChange={(e) => setStartHour(Number(e.target.value))}
-                className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs text-[#262626]"
-              >
-                {Array.from({ length: 24 }).map((_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, '0')}:00 WIB
-                  </option>
-                ))}
-              </select>
+              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Jam & Menit Mulai</label>
+              <div className="flex gap-1">
+                <select
+                  value={startHour}
+                  onChange={(e) => setStartHour(Number(e.target.value))}
+                  className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs font-bold text-[#262626]"
+                >
+                  {Array.from({ length: 24 }).map((_, i) => (
+                    <option key={i} value={i}>
+                      {String(i).padStart(2, '0')}:00 WIB
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Durasi</label>
+              <label className="text-[11px] text-[#6b6b6b] font-bold block mb-1">Durasi Pengisian</label>
               <select
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs text-[#262626]"
+                className="w-full h-10 px-2 bg-white border border-[#cccccc] text-xs font-bold text-[#262626]"
               >
                 <option value={30}>30 Menit</option>
                 <option value={60}>60 Menit (1 Jam)</option>
-                <option value={90}>90 Menit</option>
+                <option value={90}>90 Menit (1.5 Jam)</option>
                 <option value={120}>120 Menit (2 Jam)</option>
+                <option value={180}>180 Menit (3 Jam)</option>
               </select>
             </div>
           </div>
 
-          {/* Overlap Status Visual Indicator */}
+          {/* Overlap Status Visual Indicator & Auto Suggestion */}
           {hasOverlap ? (
-            <div className="p-3 bg-[#f59e0b]/10 border border-[#f59e0b] text-[#262626] text-xs flex items-center justify-between">
-              <span className="flex items-center gap-2 font-bold text-[#262626]">
-                <ShieldAlert className="w-4 h-4 text-[#f59e0b]" /> Slot telah terisi pada jam ini.
-              </span>
-              <span className="text-[10px] bg-[#f59e0b] px-2 py-0.5 font-bold text-white uppercase">
-                Fitur Waitlist Aktif
-              </span>
+            <div className="p-3 bg-[#dc2626]/10 border border-[#dc2626] text-[#262626] text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 font-bold text-[#dc2626]">
+                  <ShieldAlert className="w-4 h-4 text-[#dc2626]" /> BENTROK JADWAL 24-JAM: Slot #{selectedSlot?.slotNumber} telah dipesan pada jam ini.
+                </span>
+                <span className="text-[10px] bg-[#f59e0b] px-2 py-0.5 font-bold text-white uppercase">
+                  Waitlist System
+                </span>
+              </div>
+              <p className="text-[11px] text-[#6b6b6b]">
+                Sistem Anti-Overlap mencegah reservasi ganda pada slot yang sama. Anda dapat memilih jam lain yang berwarna hijau pada grafik 24-jam di atas atau bergabung ke antrean Waitlist.
+              </p>
             </div>
           ) : (
-            <div className="p-3 bg-[#22c55e]/10 border border-[#22c55e] text-[#22c55e] text-xs flex items-center gap-2 font-bold">
-              <CheckCircle2 className="w-4 h-4 text-[#22c55e]" /> Slot TERSEDIA dan siap dipesan!
+            <div className="p-3 bg-[#22c55e]/10 border border-[#22c55e] text-[#22c55e] text-xs flex items-center justify-between font-bold">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#22c55e]" /> Slot TERSEDIA (Bebas Bentrok: {String(startHour).padStart(2, '0')}:00 - {String(endTimeObj.getHours()).padStart(2, '0')}:{String(endTimeObj.getMinutes()).padStart(2, '0')} WIB)
+              </span>
+              <span className="text-[10px] bg-[#22c55e] px-2 py-0.5 text-white uppercase font-extrabold">
+                Conflicted FREE
+              </span>
             </div>
           )}
         </div>

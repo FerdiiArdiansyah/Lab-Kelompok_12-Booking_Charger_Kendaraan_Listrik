@@ -54,22 +54,9 @@ func (r *bookingRepository) seedInitialData() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	now := time.Now()
-
-	sampleBookings := []domain.Booking{
-		{ID: "bkg-001", UserID: "usr-001", StationID: "stn-001", SlotID: "slot-001", StartTime: now.Add(-2 * time.Hour), EndTime: now.Add(-1 * time.Hour), Status: "COMPLETED", IdempotencyKey: "idem-001", CreatedAt: now.Add(-3 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
-		{ID: "bkg-002", UserID: "usr-002", StationID: "stn-002", SlotID: "slot-003", StartTime: now.Add(-1 * time.Hour), EndTime: now.Add(1 * time.Hour), Status: "IN_SESSION", IdempotencyKey: "idem-002", CreatedAt: now.Add(-2 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
-		{ID: "bkg-003", UserID: "usr-003", StationID: "stn-003", SlotID: "slot-004", StartTime: now.Add(1 * time.Hour), EndTime: now.Add(2 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-003", CreatedAt: now, UpdatedAt: now},
-		{ID: "bkg-004", UserID: "usr-004", StationID: "stn-004", SlotID: "slot-006", StartTime: now.Add(2 * time.Hour), EndTime: now.Add(3 * time.Hour), Status: "CONFIRMED", IdempotencyKey: "idem-004", CreatedAt: now, UpdatedAt: now},
-		{ID: "bkg-005", UserID: "usr-005", StationID: "stn-005", SlotID: "slot-007", StartTime: now.Add(-4 * time.Hour), EndTime: now.Add(-3 * time.Hour), Status: "COMPLETED", IdempotencyKey: "idem-005", CreatedAt: now.Add(-5 * time.Hour), UpdatedAt: now.Add(-3 * time.Hour)},
-	}
-
-	for i := range sampleBookings {
-		b := sampleBookings[i]
-		r.bookings[b.ID] = &b
-		if r.gormDB != nil {
-			r.gormDB.FirstOrCreate(&b, domain.Booking{ID: b.ID})
-		}
+	r.bookings = make(map[string]*domain.Booking)
+	if r.gormDB != nil {
+		_ = r.gormDB.Exec("DELETE FROM bookings").Error
 	}
 }
 

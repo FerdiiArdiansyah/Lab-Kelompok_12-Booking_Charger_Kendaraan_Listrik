@@ -130,6 +130,21 @@ func (u *bookingUsecase) CancelBooking(ctx context.Context, bookingID string) er
 	return nil
 }
 
+func (u *bookingUsecase) CompleteBooking(ctx context.Context, bookingID string) error {
+	booking, err := u.repo.GetBookingByID(ctx, bookingID)
+	if err != nil {
+		return err
+	}
+	if err := u.repo.UpdateBookingStatus(ctx, bookingID, "COMPLETED"); err != nil {
+		return err
+	}
+	_ = u.repo.SaveOutboxEvent(ctx, "Booking", bookingID, "BookingCompleted", map[string]string{
+		"booking_id": bookingID,
+		"slot_id":    booking.SlotID,
+	})
+	return nil
+}
+
 func (u *bookingUsecase) GetAvailability(ctx context.Context, stationID string, start, end time.Time) ([]domain.SlotAvailability, error) {
 	return []domain.SlotAvailability{
 		{SlotID: "slot-001", Available: true},

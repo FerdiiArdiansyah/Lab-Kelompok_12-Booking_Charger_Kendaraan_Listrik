@@ -248,21 +248,22 @@ export const BillingManager: React.FC<BillingManagerProps> = ({
                       <CreditCard className="w-4 h-4 text-[#1c69d4]" /> Pilih Metode Pembayaran Instan
                     </h3>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       {[
                         { id: 'QRIS', label: 'QRIS Standard', icon: QrCode },
                         { id: 'VA_BCA', label: 'VA BCA', icon: CreditCard },
                         { id: 'VA_MANDIRI', label: 'VA Mandiri', icon: CreditCard },
-                        { id: 'E_WALLET_GOPAY', label: 'GoPay / QR', icon: CreditCard },
+                        { id: 'E_WALLET_GOPAY', label: 'GoPay / E-Wallet', icon: QrCode },
+                        { id: 'CREDIT_CARD', label: 'Kartu Kredit/Debit', icon: CreditCard },
                       ].map((m) => {
                         const Icon = m.icon;
                         return (
                           <button
                             key={m.id}
                             onClick={() => setSelectedMethod(m.id as any)}
-                            className={`p-3 border text-xs font-bold text-center transition-colors flex flex-col items-center gap-1.5 ${
+                            className={`p-3 border text-xs font-bold text-center transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                               selectedMethod === m.id
-                                ? 'bg-[#1c69d4] text-white border-[#1c69d4]'
+                                ? 'bg-[#1c69d4] text-white border-[#1c69d4] shadow-xs'
                                 : 'bg-white text-[#262626] border-[#cccccc] hover:border-[#262626]'
                             }`}
                           >

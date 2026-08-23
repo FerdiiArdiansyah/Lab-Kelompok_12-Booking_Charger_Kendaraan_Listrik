@@ -23,7 +23,7 @@ type UserVehicle struct {
 	UserID             string    `gorm:"index;size:64" json:"user_id"`
 	Brand              string    `gorm:"size:64" json:"brand"`
 	Model              string    `gorm:"size:64" json:"model"`
-	LicensePlate       string    `gorm:"size:32" json:"license_plate"`
+	LicensePlate       string    `gorm:"uniqueIndex;size:32" json:"license_plate"`
 	ConnectorType      string    `gorm:"size:32" json:"connector_type"` // Type 2, CCS2, CHAdeMO, GB/T
 	BatteryCapacityKwh float64   `json:"battery_capacity_kwh"`
 	CreatedAt          time.Time `json:"created_at"`
@@ -68,6 +68,7 @@ type UserRepository interface {
 	UpdateUser(ctx context.Context, user *User) error
 	CreateVehicle(ctx context.Context, vehicle *UserVehicle) error
 	GetVehiclesByUserID(ctx context.Context, userID string) ([]UserVehicle, error)
+	GetVehicleByLicensePlate(ctx context.Context, licensePlate string) (*UserVehicle, error)
 	DeleteVehicle(ctx context.Context, id, userID string) error
 }
 

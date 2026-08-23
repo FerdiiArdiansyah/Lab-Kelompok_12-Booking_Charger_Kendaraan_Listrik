@@ -134,6 +134,17 @@ func (h *BookingHandler) CancelBooking(c echo.Context) error {
 	})
 }
 
+func (h *BookingHandler) CompleteBooking(c echo.Context) error {
+	id := c.Param("id")
+	if err := h.usecase.CompleteBooking(c.Request().Context(), id); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "booking marked as COMPLETED",
+	})
+}
+
 func (h *BookingHandler) AutoRelease(c echo.Context) error {
 	graceStr := c.QueryParam("grace_period_minutes")
 	grace, _ := strconv.Atoi(graceStr)

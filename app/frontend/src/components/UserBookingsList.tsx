@@ -97,9 +97,13 @@ export const UserBookingsList: React.FC<UserBookingsListProps> = ({
                       <Zap className="w-3.5 h-3.5 text-[#f59e0b]" />
                       Slot ID: {bkg.slotId}
                     </span>
-                    {vehicle && (
-                      <span className="text-[#6b6b6b] font-light">
-                        {vehicle.brand} {vehicle.model} ({vehicle.licensePlate})
+                    {vehicle ? (
+                      <span className="flex items-center gap-1.5 font-bold text-[#1c69d4] bg-[#1c69d4]/10 px-2 py-0.5 border border-[#1c69d4]/20 text-[11px]">
+                        🚗 {vehicle.brand} {vehicle.model} ({vehicle.licensePlate})
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[#6b6b6b] font-medium text-[11px]">
+                        🚗 Mobil EV ID: {bkg.vehicleId || 'vhc-default'}
                       </span>
                     )}
                   </div>

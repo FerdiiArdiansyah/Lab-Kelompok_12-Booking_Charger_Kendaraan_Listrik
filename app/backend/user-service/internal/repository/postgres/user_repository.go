@@ -200,6 +200,24 @@ func (r *userRepository) GetVehiclesByUserID(ctx context.Context, userID string)
 	return list, nil
 }
 
+func (r *userRepository) GetVehicleByLicensePlate(ctx context.Context, licensePlate string) (*domain.UserVehicle, error) {
+	if r.gormDB != nil {
+		var v domain.UserVehicle
+		if err := r.gormDB.WithContext(ctx).First(&v, "LOWER(license_plate) = LOWER(?)", licensePlate).Error; err == nil {
+			return &v, nil
+		}
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, v := range r.vehicles {
+		if v.LicensePlate == licensePlate {
+			return v, nil
+		}
+	}
+	return nil, errors.New("vehicle not found")
+}
+
 func (r *userRepository) DeleteVehicle(ctx context.Context, vehicleID, userID string) error {
 	if r.gormDB != nil {
 		r.gormDB.WithContext(ctx).Where("id = ? AND user_id = ?", vehicleID, userID).Delete(&domain.UserVehicle{})

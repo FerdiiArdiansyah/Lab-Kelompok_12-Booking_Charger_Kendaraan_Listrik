@@ -137,6 +137,12 @@ func (u *userUsecase) AddVehicle(ctx context.Context, userID string, req *domain
 		return nil, errors.New("brand, model, and license plate are required")
 	}
 
+	// Unique vehicle identity constraint: 1 license plate = 1 owner
+	existingVeh, _ := u.repo.GetVehicleByLicensePlate(ctx, req.LicensePlate)
+	if existingVeh != nil {
+		return nil, errors.New("nomor plat kendaraan sudah terdaftar atas nama pengguna lain")
+	}
+
 	validConnectors := map[string]bool{
 		"CCS2":      true,
 		"CHAdeMO":   true,

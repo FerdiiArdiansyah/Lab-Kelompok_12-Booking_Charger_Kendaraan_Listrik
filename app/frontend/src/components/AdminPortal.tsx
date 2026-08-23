@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Plus, MapPin, Activity, CheckCircle2, Link as LinkIcon, ExternalLink, Image as ImageIcon, Edit3, Lock } from 'lucide-react';
+import { ShieldCheck, Plus, MapPin, Activity, CheckCircle2, Link as LinkIcon, ExternalLink, Image as ImageIcon, Edit3, Lock, Search } from 'lucide-react';
 import type { Station, ChargerSlot } from '../types';
 
 interface AdminPortalProps {
@@ -36,11 +36,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onAddStation,
   onUpdateStation,
 }) => {
-  const [selectedStationId, setSelectedStationId] = useState<string>(
-    stations[0]?.id || ''
-  );
+  const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState<Station | null>(null);
 
   // New Station Form State - Map Link & Image URL stored dynamically in DB
   const [name, setName] = useState('');
@@ -56,15 +55,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editTotalPower, setEditTotalPower] = useState<number>(150);
 
-  const selectedStation = stations.find((st) => st.id === selectedStationId) || stations[0];
-
-  const handleOpenEditModal = () => {
-    if (!selectedStation) return;
-    setEditName(selectedStation.name);
-    setEditLocation(selectedStation.location);
-    setEditMapUrl(selectedStation.mapUrl || '');
-    setEditImageUrl(selectedStation.imageUrl || '');
-    setEditTotalPower(selectedStation.totalPower || 150);
+  const handleOpenEditModal = (st: Station) => {
+    setEditingStation(st);
+    setEditName(st.name);
+    setEditLocation(st.location);
+    setEditMapUrl(st.mapUrl || '');
+    setEditImageUrl(st.imageUrl || '');
+    setEditTotalPower(st.totalPower || 150);
     setIsEditModalOpen(true);
   };
 
@@ -89,9 +86,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleSaveEditStation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStation || !onUpdateStation) return;
+    if (!editingStation || !onUpdateStation) return;
 
-    await onUpdateStation(selectedStation.id, {
+    await onUpdateStation(editingStation.id, {
       name: editName,
       location: editLocation,
       mapUrl: editMapUrl,
@@ -100,10 +97,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
 
     setIsEditModalOpen(false);
+    setEditingStation(null);
   };
 
+  // Filter stations dynamically based on search query
+  const filteredStations = stations.filter(
+    (st) =>
+      st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      st.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-fadeIn">
+    <div className="space-y-6 max-w-7xl mx-auto animate-fadeIn">
       {/* Admin Banner */}
       <div className="bg-[#1a2129] border border-[#262626] p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -113,13 +118,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
             <div>
               <span className="px-2.5 py-0.5 text-[10px] font-extrabold bg-white/10 text-white uppercase tracking-wider">
-                ADMIN CONTROL CENTER
+                PORTAL MANAJEMEN PUSAT SPKLU
               </span>
               <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
-                SISTEM MANAJEMEN MASTER DATA SPKLU
+                SISTEM MANAJEMEN MASTER DATA & PENCARIAN SPKLU
               </h1>
               <p className="text-xs text-[#9a9a9a] font-light">
-                Pengelolaan dinamis stasiun SPKLU Indonesia, pemantauan slot charger, gambar fisik tempat, link peta Google Maps, dan database PostgreSQL.
+                Kelola seluruh stasiun SPKLU Indonesia, pemantauan status slot charger, pencarian lokasi, gambar fisik tempat, dan link Google Maps dalam satu laman terpadu.
               </p>
             </div>
           </div>
@@ -159,107 +164,124 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
       </div>
 
-      {/* Station Slots & Master Data Management */}
-      <div className="bg-white border border-[#e6e6e6] p-6 sm:p-8 space-y-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#e6e6e6] pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-[#262626]">Kelola Data Stasiun & Status Slot Charger</h2>
-            <p className="text-xs text-[#6b6b6b] font-light">Ubah nama stasiun, alamat, link Google Maps, link foto fisik tempat, atau status slot operasional.</p>
-          </div>
-
-          <select
-            value={selectedStationId}
-            onChange={(e) => setSelectedStationId(e.target.value)}
-            className="p-3 bg-[#fafafa] border border-[#cccccc] text-xs font-bold text-[#262626] focus:border-[#1c69d4]"
-          >
-            {stations.map((st) => (
-              <option key={st.id} value={st.id}>
-                {st.name} ({st.slots ? st.slots.length : 0} Slots)
-              </option>
-            ))}
-          </select>
+      {/* Real-time Search & Toolbar Header */}
+      <div className="bg-white border border-[#e6e6e6] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+        <div>
+          <h2 className="text-base font-extrabold text-[#262626] uppercase tracking-wide">
+            DAFTAR SELURUH STASIUN SPKLU ({filteredStations.length} / {stations.length})
+          </h2>
+          <p className="text-xs text-[#6b6b6b]">Gunakan kolom pencarian di sebelah kanan untuk menyaring stasiun berdasarkan nama atau lokasi.</p>
         </div>
 
-        {selectedStation && selectedStation.slots ? (
-          <div className="space-y-4">
-            <div className="p-4 bg-[#fafafa] border border-[#e6e6e6] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <StationThumbnail imageUrl={selectedStation.imageUrl} name={selectedStation.name} />
-                <div>
-                  <h4 className="font-extrabold text-[#262626] text-sm">{selectedStation.name}</h4>
-                  <p className="text-xs text-[#6b6b6b]">{selectedStation.location}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <button
-                  onClick={handleOpenEditModal}
-                  className="bmw-btn-primary text-xs flex items-center gap-1.5"
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Edit Data & Link Foto/Peta
-                </button>
-                <a
-                  href={selectedStation.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedStation.name + ' ' + selectedStation.location)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bmw-btn-outline text-xs flex items-center gap-1.5"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Buka Google Maps
-                </a>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {selectedStation.slots.map((slot) => (
-                <div
-                  key={slot.id}
-                  className="bg-[#fafafa] p-4 border border-[#e6e6e6] space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-[#262626] text-sm">
-                      Slot #{slot.slotNumber} ({slot.connectorType})
-                    </span>
-                    <span className="text-xs text-[#1c69d4] font-bold">{slot.maxPowerKw} kW</span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-[#6b6b6b] uppercase font-bold tracking-wider block">Status Operasional</label>
-                    {slot.status === 'IN_USE' ? (
-                      <div className="p-2.5 bg-[#1c69d4]/10 border border-[#1c69d4]/30 text-[#1c69d4] text-[10px] font-bold flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Lock className="w-3.5 h-3.5 shrink-0" />
-                          <span>IN_USE (Terkunci Sesi Charging)</span>
-                        </span>
-                        <span className="text-[9px] bg-[#1c69d4] text-white px-1.5 py-0.5 uppercase tracking-wider font-extrabold">TERKUNCI</span>
-                      </div>
-                    ) : (
-                      <select
-                        value={slot.status}
-                        onChange={(e) =>
-                          onUpdateSlotStatus(selectedStation.id, slot.id, e.target.value as any)
-                        }
-                        className={`w-full p-2.5 text-xs font-bold border bg-white ${
-                          slot.status === 'AVAILABLE'
-                            ? 'border-[#22c55e] text-[#22c55e]'
-                            : 'border-[#dc2626] text-[#dc2626]'
-                        }`}
-                      >
-                        <option value="AVAILABLE">AVAILABLE (Tersedia)</option>
-                        <option value="OUT_OF_SERVICE">OUT_OF_SERVICE (Pemeliharaan)</option>
-                      </select>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 bg-[#fafafa] text-xs text-[#6b6b6b]">Pilih stasiun di atas untuk mengelola slot charger.</div>
-        )}
+        {/* Search Bar Input */}
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-[#9a9a9a]" />
+          <input
+            type="text"
+            placeholder="Cari SPKLU (Nama, Alamat, Kota)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-10 pl-9 pr-4 bg-[#fafafa] border border-[#cccccc] text-xs font-medium text-[#262626] focus:border-[#1c69d4]"
+          />
+        </div>
       </div>
 
+      {/* List of ALL Stations on Single Page */}
+      {filteredStations.length > 0 ? (
+        <div className="space-y-6">
+          {filteredStations.map((station) => (
+            <div key={station.id} className="bg-white border border-[#e6e6e6] p-6 space-y-4 shadow-sm">
+              <div className="p-4 bg-[#fafafa] border border-[#e6e6e6] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <StationThumbnail imageUrl={station.imageUrl} name={station.name} />
+                  <div>
+                    <h3 className="font-extrabold text-[#262626] text-base">{station.name}</h3>
+                    <p className="text-xs text-[#6b6b6b] flex items-center gap-1.5 mt-0.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#1c69d4] shrink-0" />
+                      <span>{station.location}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={() => handleOpenEditModal(station)}
+                    className="bmw-btn-primary text-xs flex items-center gap-1.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Edit Data & Link Foto/Peta
+                  </button>
+                  <a
+                    href={station.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(station.name + ' ' + station.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bmw-btn-outline text-xs flex items-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Buka Google Maps
+                  </a>
+                </div>
+              </div>
+
+              {/* Slot Cards Grid */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-[#6b6b6b] uppercase tracking-wider">
+                  Daftar Slot Charger ({station.slots ? station.slots.length : 0} Konektor):
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {station.slots && station.slots.map((slot) => (
+                    <div key={slot.id} className="bg-[#fafafa] p-4 border border-[#e6e6e6] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-[#262626] text-sm">
+                          Slot #{slot.slotNumber} ({slot.connectorType})
+                        </span>
+                        <span className="text-xs text-[#1c69d4] font-bold">{slot.maxPowerKw} kW</span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-[#6b6b6b] uppercase font-bold tracking-wider block">
+                          Status Operasional
+                        </label>
+                        {slot.status === 'IN_USE' ? (
+                          <div className="p-2.5 bg-[#1c69d4]/10 border border-[#1c69d4]/30 text-[#1c69d4] text-[10px] font-bold flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <Lock className="w-3.5 h-3.5 shrink-0" />
+                              <span>IN_USE (Terkunci Sesi Charging)</span>
+                            </span>
+                            <span className="text-[9px] bg-[#1c69d4] text-white px-1.5 py-0.5 uppercase tracking-wider font-extrabold">
+                              TERKUNCI
+                            </span>
+                          </div>
+                        ) : (
+                          <select
+                            value={slot.status}
+                            onChange={(e) => onUpdateSlotStatus(station.id, slot.id, e.target.value as any)}
+                            className={`w-full p-2.5 text-xs font-bold border bg-white ${
+                              slot.status === 'AVAILABLE'
+                                ? 'border-[#22c55e] text-[#22c55e]'
+                                : 'border-[#dc2626] text-[#dc2626]'
+                            }`}
+                          >
+                            <option value="AVAILABLE">AVAILABLE (Tersedia)</option>
+                            <option value="OUT_OF_SERVICE">OUT_OF_SERVICE (Pemeliharaan)</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-12 bg-white border border-[#e6e6e6] text-center space-y-2">
+          <Search className="w-8 h-8 text-[#9a9a9a] mx-auto" />
+          <h4 className="font-bold text-[#262626] text-sm">Tidak Ada SPKLU Ditemukan</h4>
+          <p className="text-xs text-[#6b6b6b]">Tidak ada stasiun yang cocok dengan pencarian "{searchQuery}".</p>
+        </div>
+      )}
+
       {/* Edit Station Modal */}
-      {isEditModalOpen && selectedStation && (
+      {isEditModalOpen && editingStation && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-[#262626] max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#e6e6e6] pb-3">

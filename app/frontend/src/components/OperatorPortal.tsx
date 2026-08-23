@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Lock,
 } from 'lucide-react';
-import type { Station, Booking, ChargingSession, Invoice, User } from '../types';
+import type { Station, Booking, ChargingSession, Invoice, User, UserVehicle } from '../types';
 
 interface OperatorPortalProps {
   stations: Station[];
@@ -26,6 +26,7 @@ interface OperatorPortalProps {
   invoices?: Invoice[];
   activeSession?: ChargingSession | null;
   currentUser?: User | null;
+  vehicles?: UserVehicle[];
 }
 
 interface MaintenanceTicket {
@@ -46,6 +47,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
   invoices = [],
   activeSession = null,
   currentUser = null,
+  vehicles = [],
 }) => {
   const [selectedStationId, setSelectedStationId] = useState<string>('ALL');
   const [activeTabSection, setActiveTabSection] = useState<'LIVE' | 'HISTORY' | 'INVOICES' | 'MAINTENANCE'>('LIVE');
@@ -148,19 +150,20 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
     return bookings.map((b) => {
       const station = stations.find((st) => st.id === b.stationId);
       const slot = station?.slots ? station.slots.find((sl) => sl.id === b.slotId) : undefined;
+      const veh = vehicles.find((v) => v.id === b.vehicleId);
       return {
         id: b.id,
         stationId: b.stationId,
         stationName: station?.name || 'Stasiun SPKLU',
         slotNumber: slot ? `Slot #${slot.slotNumber} (${slot.connectorType})` : `Slot #${b.slotId}`,
         driverName: currentUser?.id === b.userId ? currentUser.name : 'Driver EV',
-        vehicleName: 'Kendaraan EV',
+        vehicleName: veh ? `${veh.brand} ${veh.model} (${veh.licensePlate})` : `Mobil EV (#${b.vehicleId || 'N/A'})`,
         startTime: b.startTime,
         endTime: b.endTime,
         status: b.status,
       };
     });
-  }, [bookings, stations, currentUser]);
+  }, [bookings, stations, currentUser, vehicles]);
 
   // 3. DERIVE REAL INVOICES FROM PROPS (0 DUMMY HARDCODED DATA)
   const realInvoices = React.useMemo(() => {

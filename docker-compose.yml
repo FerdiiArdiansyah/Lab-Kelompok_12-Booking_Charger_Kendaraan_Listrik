@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Database Service (PostgreSQL 16)
+  postgres:
+    image: postgres:16-alpine
+    container_name: volthub_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - volthub_pgdata:/var/lib/postgresql/data
+      - ./database/init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - volthub_net
+
+  # 1. User Microservice (Port 8086)
+  user-service:
+    build:
+      context: ./app/backend/user-service
+      dockerfile: Dockerfile
+    container_name: volthub_user_service
+    environment:
+      PORT: 8086
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: user_db
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - volthub_net
+
+  # 2. Station Microservice (Port 8082)
+  station-service:
+    build:
+      context: ./app/backend/station-service
+      dockerfile: Dockerfile
+    container_name: volthub_station_service
+    environment:
+      PORT: 8082
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: station_db
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - volthub_net
+
+  # 3. Booking Microservice (Port 8083)
+  booking-service:
+    build:
+      context: ./app/backend/booking-service
+      dockerfile: Dockerfile
+    container_name: volthub_booking_service
+    environment:
+      PORT: 8083
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: booking_db
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - volthub_net
+
+  # 4. Session Microservice (Port 8084)
+  session-service:
+    build:
+      context: ./app/backend/session-service
+      dockerfile: Dockerfile
+    container_name: volthub_session_service
+    environment:
+      PORT: 8084
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: session_db
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - volthub_net
+
+  # 5. Billing Microservice (Port 8085)
+  billing-service:
+    build:
+      context: ./app/backend/billing-service
+      dockerfile: Dockerfile
+    container_name: volthub_billing_service
+    environment:
+      PORT: 8085
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: billing_db
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - volthub_net
+
+  # 6. React Frontend Web App (Port 80 / 5173)
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: volthub_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - user-service
+      - station-service
+      - booking-service
+      - session-service
+      - billing-service
+    networks:
+      - volthub_net
+
+volumes:
+  volthub_pgdata:
+
+networks:
+  volthub_net:
+    driver: bridge

@@ -23,6 +23,11 @@ func (u *billingUsecase) GenerateInvoice(ctx context.Context, sessionID, userID,
 		return nil, errors.New("session_id and user_id are required")
 	}
 
+	// 1 charging session = 1 invoice transaction idempotency guarantee
+	if existing, err := u.repo.GetInvoiceBySessionID(ctx, sessionID); err == nil && existing != nil {
+		return existing, nil
+	}
+
 	if pricePerKwh <= 0 {
 		pricePerKwh = 2467.0 // Default tarif PLN per kWh
 	}

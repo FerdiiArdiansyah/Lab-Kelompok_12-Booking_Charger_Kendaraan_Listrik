@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Zap, ChevronRight, SlidersHorizontal, Info, ExternalLink, Image as ImageIcon, Map as MapIcon } from 'lucide-react';
-import type { Station, ChargerSlot } from '../types';
+import type { Station, ChargerSlot, Booking } from '../types';
 
 interface StationExplorerProps {
   stations: Station[];
+  allBookings?: Booking[];
   onSelectStationForBooking: (station: Station, slot?: ChargerSlot) => void;
 }
 
 export const StationExplorer: React.FC<StationExplorerProps> = ({
   stations,
+  allBookings = [],
   onSelectStationForBooking,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,17 +83,17 @@ export const StationExplorer: React.FC<StationExplorerProps> = ({
       </div>
 
       {/* Filter Row (Chips) */}
-      <div className="bg-[#fafafa] border border-[#e6e6e6] p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+      <div className="bg-[#fafafa] border border-[#e6e6e6] p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
         {/* Connector Filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-[#262626] uppercase tracking-wider flex items-center gap-1.5 mr-2">
+        <div className="w-full md:w-auto flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <span className="text-xs font-bold text-[#262626] uppercase tracking-wider flex items-center gap-1.5 shrink-0 mr-1">
             <SlidersHorizontal className="w-4 h-4 text-[#1c69d4]" /> Konektor:
           </span>
           {['ALL', 'CCS2', 'CHAdeMO', 'Type 2'].map((conn) => (
             <button
               key={conn}
               onClick={() => setSelectedConnector(conn)}
-              className={`px-4 py-2 text-xs font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-bold shrink-0 transition-all ${
                 selectedConnector === conn
                   ? 'bg-[#1c69d4] text-white shadow-sm'
                   : 'bg-white text-[#262626] border border-[#cccccc] hover:border-[#1c69d4]'
@@ -103,13 +105,13 @@ export const StationExplorer: React.FC<StationExplorerProps> = ({
         </div>
 
         {/* Power Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#6b6b6b] uppercase tracking-wider hidden sm:inline">Daya:</span>
+        <div className="w-full md:w-auto flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <span className="text-xs font-bold text-[#6b6b6b] uppercase tracking-wider shrink-0">Daya:</span>
           {['ALL', 'FAST', 'ULTRA_FAST'].map((pwr) => (
             <button
               key={pwr}
               onClick={() => setSelectedPowerFilter(pwr)}
-              className={`px-4 py-2 text-xs font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-bold shrink-0 transition-all ${
                 selectedPowerFilter === pwr
                   ? 'bg-[#262626] text-white shadow-sm'
                   : 'bg-white text-[#262626] border border-[#cccccc] hover:border-[#262626]'
@@ -281,6 +283,94 @@ export const StationExplorer: React.FC<StationExplorerProps> = ({
                           </div>
                         ))}
                       </div>
+
+                      {/* Dynamic 24-Hour Schedule Matrix Bar Preview from Backend Data */}
+                      {(() => {
+                        const getLocalDateStr = (d: Date = new Date()) => {
+                          const year = d.getFullYear();
+                          const month = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          return `${year}-${month}-${day}`;
+                        };
+                        const todayStr = getLocalDateStr();
+
+                        // Filter active bookings for this specific station
+                        const stationBookings = (allBookings || []).filter(
+                          (b) => b.stationId === station.id && b.status !== 'CANCELLED' && b.status !== 'EXPIRED' && b.status !== 'COMPLETED'
+                        );
+
+                        // Calculate 24-hour occupancy for this station
+                        const hourlyOccupancy = Array.from({ length: 24 }).map((_, h) => {
+                          const hourSlotStart = new Date(`${todayStr}T${String(h).padStart(2, '0')}:00:00`).getTime();
+                          const hourSlotEnd = hourSlotStart + 3600000;
+
+                          return stationBookings.some((b) => {
+                            const bStart = new Date(b.startTime);
+                            const bEnd = new Date(b.endTime);
+
+                            const startHour = bStart.getHours();
+                            let endHour = bEnd.getHours();
+                            if (endHour <= startHour && bEnd.getTime() > bStart.getTime()) {
+                              endHour = startHour + 1;
+                            }
+
+                            const isHourMatch = (h >= startHour && h < endHour);
+                            const isTimeOverlap = hourSlotStart < bEnd.getTime() && hourSlotEnd > bStart.getTime();
+
+                            return isHourMatch || isTimeOverlap;
+                          });
+                        });
+
+                        const occupiedHoursList: number[] = [];
+                        const emptyHoursList: number[] = [];
+                        hourlyOccupancy.forEach((isOccupied, h) => {
+                          if (isOccupied) occupiedHoursList.push(h);
+                          else emptyHoursList.push(h);
+                        });
+
+                        const occupiedSummary = occupiedHoursList.length > 0
+                          ? occupiedHoursList.map((h) => `${String(h).padStart(2, '0')}:00`).join(', ')
+                          : 'Tidak Ada (Semua Jam Kosong)';
+
+                        const emptySummary = emptyHoursList.length === 24
+                          ? '24 Jam Bebas (Semua Kosong)'
+                          : emptyHoursList.length > 0
+                          ? emptyHoursList.map((h) => `${String(h).padStart(2, '0')}:00`).join(', ')
+                          : 'Tidak Ada (Semua Jam Terisi)';
+
+                        return (
+                          <div className="pt-2 bg-[#fafafa] p-2.5 border border-[#e6e6e6] space-y-1.5">
+                            {/* 24 Hour Blocks Grid with printed hour numbers */}
+
+                            {/* 24 Hour Blocks Grid with printed hour numbers */}
+                            <div className="grid grid-cols-12 sm:grid-cols-24 gap-0.5 bg-white p-1 border border-[#cccccc]">
+                              {hourlyOccupancy.map((isHourOccupied, h) => (
+                                <div
+                                  key={h}
+                                  title={`Jam ${String(h).padStart(2, '0')}:00 WIB (${isHourOccupied ? 'TERISI / BENTROK' : 'KOSONG / TERSEDIA'})`}
+                                  className={`h-6 text-[9px] font-extrabold flex items-center justify-center transition-colors ${
+                                    isHourOccupied
+                                      ? 'bg-red-500 text-white border border-red-600'
+                                      : 'bg-[#22c55e] text-white border border-emerald-600'
+                                  }`}
+                                >
+                                  {String(h).padStart(2, '0')}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Explicit Empty & Occupied Hours Summary Text */}
+                            <div className="space-y-0.5 pt-0.5 text-[10px]">
+                              <div className="text-emerald-700 font-extrabold truncate">
+                                🟢 Jam Kosong: {emptySummary}
+                              </div>
+                              <div className="text-red-600 font-extrabold truncate">
+                                🔴 Jam Terisi: {occupiedSummary}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 

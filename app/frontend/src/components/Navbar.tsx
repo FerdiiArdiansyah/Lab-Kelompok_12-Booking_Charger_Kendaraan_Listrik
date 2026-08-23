@@ -23,11 +23,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   let navItems: { id: string; label: string; icon: any; badge?: string }[] = [];
 
   if (currentUser?.role === 'ADMIN') {
-    // Admin Menu: Portal Manajemen Pusat SPKLU, Laman Operator, & Cari SPKLU
+    // Admin Menu: Single Consolidated Menu
     navItems = [
       { id: 'admin', label: 'Portal Manajemen Pusat SPKLU', icon: ShieldCheck },
-      { id: 'operator', label: 'Laman Operator & Monitoring Realtime', icon: Wrench },
-      { id: 'finder', label: 'Cari SPKLU', icon: MapPin },
     ];
   } else if (currentUser?.role === 'OPERATOR') {
     // Operator Menu: Monitoring Realtime & Control Center
@@ -60,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand Logo */}
         <div 
           className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => setActiveTab((currentUser?.role === 'ADMIN' || currentUser?.role === 'OPERATOR') ? 'operator' : 'finder')}
+          onClick={() => setActiveTab(currentUser?.role === 'ADMIN' ? 'admin' : currentUser?.role === 'OPERATOR' ? 'operator' : 'finder')}
         >
           <div>
             <div className="flex items-center gap-2">
@@ -141,13 +139,42 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onOpenAuthModal}
-              className="bmw-btn-primary text-xs shrink-0"
+              className="px-3 py-1.5 sm:px-5 sm:py-2 bg-[#1c69d4] hover:bg-[#0653b6] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shrink-0 shadow-xs transition-colors h-9 sm:h-10 border-none cursor-pointer"
             >
-              <LogIn className="w-4 h-4" />
-              <span>LOGIN / REGISTRASI</span>
+              <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">LOGIN / REGISTRASI</span>
+              <span className="sm:hidden">LOGIN</span>
             </button>
           )}
         </div>
+      </div>
+
+      {/* Mobile Bottom Navigation Bar (Visible only on small screens) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#e6e6e6] flex items-center justify-around h-16 px-1 shadow-2xl">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex-1 py-1 flex flex-col items-center justify-center gap-1 relative transition-colors ${
+                isActive ? 'text-[#1c69d4] font-bold' : 'text-[#6b6b6b] hover:text-[#262626]'
+              }`}
+            >
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {item.badge && (
+                  <span className="w-2 h-2 bg-[#22c55e] absolute -top-0.5 -right-1 rounded-full animate-ping" />
+                )}
+              </div>
+              <span className="text-[10px] leading-none truncate max-w-[70px]">{item.label}</span>
+              {isActive && (
+                <div className="w-6 h-0.5 bg-[#1c69d4] rounded-full absolute top-0" />
+              )}
+            </button>
+          );
+        })}
       </div>
     </header>
   );
