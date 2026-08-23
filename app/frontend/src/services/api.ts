@@ -1,11 +1,15 @@
 import type { Station, UserVehicle, Booking, ChargingSession, Invoice, User } from '../types';
 
+const isProduction = typeof window !== 'undefined' && (
+  window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+);
+
 const SERVICES = {
-  USER: 'http://localhost:8086',
-  STATION: 'http://localhost:8082',
-  BOOKING: 'http://localhost:8083',
-  SESSION: 'http://localhost:8084',
-  BILLING: 'http://localhost:8085',
+  USER: isProduction ? '/api/user' : 'http://localhost:8086',
+  STATION: isProduction ? '/api/station' : 'http://localhost:8082',
+  BOOKING: isProduction ? '/api/booking' : 'http://localhost:8083',
+  SESSION: isProduction ? '/api/session' : 'http://localhost:8084',
+  BILLING: isProduction ? '/api/billing' : 'http://localhost:8085',
 };
 
 // Helper to fetch with timeout and fallback
