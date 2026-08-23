@@ -117,6 +117,7 @@ export function App() {
           setVehicles([]);
           setActiveSession(null);
           setInvoices([]);
+          setActiveTab('finder');
         }
       } catch (err) {
         console.error('Error fetching app data:', err);
@@ -182,9 +183,13 @@ export function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('volt_user');
     localStorage.removeItem('user');
+    setVehicles([]);
+    setActiveSession(null);
+    setInvoices([]);
+    setActiveTab('finder');
     const publicBookings = await apiService.getAllBookings();
     setBookings(publicBookings || []);
-    showToast('Anda telah keluar (Logout). Session dibersihkan.');
+    showToast('Anda telah keluar (Logout). Session & Hak Akses Privat dibersihkan.');
   };
 
   // Auth Handlers
@@ -494,61 +499,151 @@ export function App() {
         )}
 
         {activeTab === 'garage' && (
-          <UserGarage
-            vehicles={vehicles}
-            onAddVehicle={handleAddVehicle}
-            onDeleteVehicle={handleDeleteVehicle}
-          />
+          currentUser ? (
+            <UserGarage
+              vehicles={vehicles}
+              onAddVehicle={handleAddVehicle}
+              onDeleteVehicle={handleDeleteVehicle}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Akses Garasi EV Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Silakan Login atau Registrasi terlebih dahulu untuk mengelola daftar kendaraan listrik pribadi Anda.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN / REGISTRASI SEKARANG
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'bookings' && (
-          <UserBookingsList
-            bookings={bookings.filter((b) => b.userId === currentUser?.id)}
-            stations={stations}
-            vehicles={vehicles}
-            onStartSessionFromBooking={handleStartSessionFromBooking}
-            onCancelBooking={(id) => {
-              setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'CANCELLED' } : b)));
-              showToast('Booking dibatalkan.');
-            }}
-            onNavigateToFinder={() => setActiveTab('finder')}
-          />
+          currentUser ? (
+            <UserBookingsList
+              bookings={bookings.filter((b) => b.userId === currentUser?.id)}
+              stations={stations}
+              vehicles={vehicles}
+              onStartSessionFromBooking={handleStartSessionFromBooking}
+              onCancelBooking={(id) => {
+                setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'CANCELLED' } : b)));
+                showToast('Booking dibatalkan.');
+              }}
+              onNavigateToFinder={() => setActiveTab('finder')}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Akses Booking Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Silakan Login atau Registrasi terlebih dahulu untuk melihat dan mengelola riwayat reservasi Anda.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN / REGISTRASI SEKARANG
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'session' && (
-          <LiveSessionViewer
-            session={activeSession}
-            stations={stations}
-            onFinishSession={handleFinishSession}
-          />
+          currentUser ? (
+            <LiveSessionViewer
+              session={activeSession}
+              stations={stations}
+              onFinishSession={handleFinishSession}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Live Telemetry Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Silakan Login terlebih dahulu untuk memantau status charging aktif kendaraan Anda.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN / REGISTRASI SEKARANG
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'billing' && (
-          <BillingManager
-            invoices={invoices}
-            onConfirmPayment={handleConfirmPayment}
-          />
+          currentUser ? (
+            <BillingManager
+              invoices={invoices}
+              onConfirmPayment={handleConfirmPayment}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Akses Tagihan Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Silakan Login terlebih dahulu untuk melakukan pembayaran dan mengunduh invoice transaksi.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN / REGISTRASI SEKARANG
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'operator' && (
-          <OperatorPortal
-            stations={stations}
-            onUpdateSlotStatus={handleUpdateSlotStatus}
-            bookings={bookings}
-            invoices={invoices}
-            activeSession={activeSession}
-            currentUser={currentUser}
-            vehicles={vehicles}
-          />
+          currentUser?.role === 'OPERATOR' ? (
+            <OperatorPortal
+              stations={stations}
+              onUpdateSlotStatus={handleUpdateSlotStatus}
+              bookings={bookings}
+              invoices={invoices}
+              activeSession={activeSession}
+              currentUser={currentUser}
+              vehicles={vehicles}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Akses Operator Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Hanya Akun Operator yang berhak mengakses Laman Monitoring Realtime.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN SEBAGAI OPERATOR
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'admin' && (
-          <AdminPortal
-            stations={stations}
-            onUpdateSlotStatus={handleUpdateSlotStatus}
-            onAddStation={handleAddStation}
-            onUpdateStation={handleUpdateStation}
-          />
+          currentUser?.role === 'ADMIN' ? (
+            <AdminPortal
+              stations={stations}
+              onUpdateSlotStatus={handleUpdateSlotStatus}
+              onAddStation={handleAddStation}
+              onUpdateStation={handleUpdateStation}
+            />
+          ) : (
+            <div className="p-8 text-center bg-[#fafafa] border border-[#e6e6e6] my-8 max-w-lg mx-auto shadow-xs">
+              <h3 className="text-base font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Akses Administrator Terbatas</h3>
+              <p className="text-xs text-[#6b6b6b] leading-relaxed mb-6">
+                Hanya Akun Admin Pusat SPKLU yang berhak mengelola stasiun dan data sistem.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bmw-btn-primary text-xs"
+              >
+                LOGIN SEBAGAI ADMIN
+              </button>
+            </div>
+          )
         )}
       </main>
 

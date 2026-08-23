@@ -33,8 +33,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       { id: 'operator', label: 'Laman Operator & Monitoring Realtime', icon: Wrench },
       { id: 'finder', label: 'Cari SPKLU', icon: MapPin },
     ];
-  } else {
-    // Driver User & Guest Menu Access
+  } else if (currentUser?.role === 'USER') {
+    // Driver User Menu Access
     navItems = [
       { id: 'finder', label: 'Cari SPKLU', icon: MapPin },
       { id: 'garage', label: 'Garasi EV', icon: Car },
@@ -46,6 +46,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         badge: hasActiveSession ? 'CHARGING' : undefined 
       },
       { id: 'billing', label: 'Invoices & Payment', icon: CreditCard },
+    ];
+  } else {
+    // Guest / Unauthenticated Visitor (Public Access Only)
+    navItems = [
+      { id: 'finder', label: 'Cari SPKLU', icon: MapPin },
     ];
   }
 
