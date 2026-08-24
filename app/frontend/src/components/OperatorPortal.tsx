@@ -16,8 +16,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Lock,
+  Server,
 } from 'lucide-react';
 import type { Station, Booking, ChargingSession, Invoice, User, UserVehicle } from '../types';
+import { KafkaBrokerMonitor } from './KafkaBrokerMonitor';
 
 interface OperatorPortalProps {
   stations: Station[];
@@ -50,7 +52,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
   vehicles = [],
 }) => {
   const [selectedStationId, setSelectedStationId] = useState<string>('ALL');
-  const [activeTabSection, setActiveTabSection] = useState<'LIVE' | 'HISTORY' | 'INVOICES' | 'MAINTENANCE'>('LIVE');
+  const [activeTabSection, setActiveTabSection] = useState<'LIVE' | 'HISTORY' | 'INVOICES' | 'MAINTENANCE' | 'KAFKA'>('LIVE');
   const [searchFilter, setSearchFilter] = useState('');
   const [isDiagnosticRunning, setIsDiagnosticRunning] = useState<boolean>(false);
   const [diagnosticResult, setDiagnosticResult] = useState<string | null>(null);
@@ -387,6 +389,18 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
             <Sliders className="w-4 h-4" />
             <span>Kendali Hardware Slot</span>
           </button>
+
+          <button
+            onClick={() => setActiveTabSection('KAFKA')}
+            className={`px-4 py-2.5 text-xs font-extrabold uppercase transition-all flex items-center gap-2 ${
+              activeTabSection === 'KAFKA'
+                ? 'bg-[#1c69d4] text-white shadow-sm font-bold'
+                : 'bg-[#fafafa] text-[#1c69d4] border border-[#1c69d4]/40 hover:border-[#1c69d4] hover:bg-[#1c69d4]/5'
+            }`}
+          >
+            <Server className="w-4 h-4 text-[#1c69d4]" />
+            <span>KAFKA MESSAGE BROKER</span>
+          </button>
         </div>
 
         {/* Station Selector & Search Filter */}
@@ -416,6 +430,11 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
           </select>
         </div>
       </div>
+
+      {/* SECTION KAFKA: KAFKA MESSAGE BROKER PIPELINE MONITORING */}
+      {activeTabSection === 'KAFKA' && (
+        <KafkaBrokerMonitor />
+      )}
 
       {/* SECTION 1: PENGGUNA SAAT INI (REALTIME ACTIVE CHARGING SESSIONS) */}
       {activeTabSection === 'LIVE' && (

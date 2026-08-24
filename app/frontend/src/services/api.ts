@@ -667,4 +667,29 @@ export const apiService = {
     }
     return true;
   },
+
+  // === KAFKA MESSAGE BROKER (Port 9092) API ENDPOINTS ===
+  async getKafkaEvents(): Promise<any> {
+    try {
+      const response = await fetch(`${SERVICES.BILLING}/kafka/events`);
+      if (!response.ok) return { events: [] };
+      return await response.json();
+    } catch {
+      return { events: [] };
+    }
+  },
+
+  async publishKafkaEvent(eventData: { topic: string; source: string; aggregate_id: string; payload: any }): Promise<any> {
+    try {
+      const response = await fetch(`${SERVICES.BILLING}/kafka/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      });
+      return await response.json();
+    } catch (err) {
+      console.warn('Failed to publish Kafka event:', err);
+      return null;
+    }
+  },
 };
